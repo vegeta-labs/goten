@@ -509,3 +509,5 @@ Every finding is fixed with a test and a mutant. The major ones are of one kind:
 **Reviews:** A fresh-context self-test review, a design expert for the page layout (the owner chose one of three options), and Codex 3 rounds; round 3 READY AFTER FIXES with the fixes applied. Every finding was judged before any change.
 
 **Acceptance and release:** The owner accepted it on 2026-10-29 ("I accept this version") and approved going live. The app is unchanged (build `index-tN1Qq31h.js`). Production branch `release`; the live security headers match `site/vercel.json` and the smoke test passed.
+
+**Own repository (2026-11-02):** the website moved to https://github.com/deal-ops/deal-ops-site and deploys from there; same address, and every live file and header unchanged (checked byte for byte before and after).

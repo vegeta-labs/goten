@@ -85,6 +85,7 @@ In the owner's words: an hour from request to delivery for this is too slow. The
 1. Run the **full** manual acceptance checklist and all automated tests on the `main` preview link.
 2. After the owner confirms, merge `main` into `release`, and production goes live.
 3. Run the smoke test on the production address; tag; write release notes (listing only tested features).
+4. After this repository is refreshed, set `toolkit.ref` in the website repository to the new commit and run the website checks; if the app's wording or figures changed, update the website too (the website quotes the app word for word).
 
 ### G4 user feedback loop
 1. Record every piece of feedback in `docs/feedback_log.md`: **pseudonyms only** and anonymised content; contact details and original material do not go into the repository.

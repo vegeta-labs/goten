@@ -1,5 +1,5 @@
 // src/tokens.css is shared word for word with Deal Ops Inbox, a second component in design. Its design rules, which record this hash,
-// are not yet published. Change the rules first, then both copies and this hash. The website (site/) does not use it.
+// are not yet published. Change the rules first, then both copies and this hash. The website (repo deal-ops/deal-ops-site) does not use it.
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 

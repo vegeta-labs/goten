@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint --deny-warnings --ignore-pattern site/site.js",
+    "lint": "oxlint --deny-warnings",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc -b",
@@ -17,8 +17,6 @@
     "mutation": "node scripts/mutation-check.mjs",
     "e2e": "playwright test",
     "e2e:check": "playwright test && node scripts/check-e2e.mjs e2e-report.json",
-    "site:build": "rolldown site-src/site.js -f iife -m -o site/site.js",
-    "site:check": "node scripts/check-site.mjs",
     "check:tokens": "node scripts/check-tokens.mjs"
   },
   "dependencies": {
