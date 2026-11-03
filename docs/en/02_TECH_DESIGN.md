@@ -1,4 +1,4 @@
-English snapshot of docs/02_TECH_DESIGN.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, updated for v0.8 on 2026-10-25.
+English snapshot of docs/02_TECH_DESIGN.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, updated for v0.8 on 2026-10-25, hosting updated on 2026-11-03 (rules v0.7.5; no calculation rule changed).
 
 # Deal Ops Toolkit — Technical design
 
@@ -27,7 +27,7 @@ Version **v0.8** (drafted 2026-10-23; passed 3 rounds of Codex review; approved 
 | Tests | Vitest (unit + invariants); independent Python recalculation (standard library `fractions`/`decimal` only); Playwright (added when the first UI path appears, i.e. M2) | See the test plan | Jest |
 | UI unit tests (new dependency in M2) | `@testing-library/react` + `@testing-library/dom` + `jsdom`; test files declare `@vitest-environment jsdom` at the top | User-action cases (TC-IO-20, TC-DEAL-02, TC-ALL-24, TC-X-01/02) run directly in Vitest and count towards the TC coverage check; development dependency only, not shipped in the page | Putting everything in Playwright (slow, and not in the TC coverage report) |
 | End-to-end (new dependency in M2) | `@playwright/test`, Chromium only; runs against the **production build**; `vite preview` reads `vercel.json` and adds the same security response headers, so a CSP violation fails the test; `scripts/check-e2e.mjs` reads the report and checks that every due E2E case ran and passed | Test plan §4 | Cypress |
-| Hosting | Private GitHub repository + Vercel. **Vercel production is bound to the `release` branch**; `main` and PR branches only get preview links | Merging to main does not go live directly; it goes live only when main is merged into release after G3 passes (Codex #20) | main deploys to production automatically |
+| Hosting | Private GitHub development repository + this public repository + Vercel. **Vercel production is bound to this public repository's `release` branch** (since 2026-11-03; Vercel's free plan cannot deploy from a private organization repository, so the development repository has no preview links) | Merging to main does not go live directly; it goes live only when this repository's `release` is fast-forwarded after G3 passes (Codex #20) | main deploys to production automatically |
 | CI | GitHub Actions: type check → lint → unit tests → Python recalculation → build; Playwright added from M2. The coverage check reads the test runner's JSON report and checks that every "due case ID" was **actually run and passed** (not a string search in the source); each case's due milestone is marked in the test plan, and the current milestone is recorded in `docs/milestone.txt` | — | — |
 
 ## 2. Structure
@@ -100,9 +100,9 @@ distribute(input: WaterfallInput): Outcome<WaterfallResult>     // exit costs ab
 
 ## 6. Deployment and versions
 
-- `main`: the development line; every merged PR gets a preview; it does not go live directly.
-- `release`: Vercel production. After G3 passes, the owner merges `main` into `release`.
-- A private repository on the free plan cannot enforce branch protection, so process discipline and CI status do the gatekeeping; the owner merges himself (see rule G2).
+- `main`: the development line; it does not go live directly.
+- `release`: after G3 passes, the owner merges `main` into `release` in the development repository (kept as a record); production deploys from this public repository's `release`, see rule G3 step 2.
+- The private development repository on the free plan cannot enforce branch protection, so process discipline and CI status do the gatekeeping; this public repository's `release` is protected (no force push, no deletion); the owner merges himself (see rule G2).
 - Tags: M2 `v0.1.0`, M3 `v0.2.0`, M4 `v1.0.0`.
 
 ## 7. Known risks

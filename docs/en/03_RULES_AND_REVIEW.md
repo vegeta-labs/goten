@@ -1,13 +1,14 @@
-English snapshot of docs/03_RULES_AND_REVIEW.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated on 2026-10-30.
+English snapshot of docs/03_RULES_AND_REVIEW.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated on 2026-11-03.
 
 # Deal Ops Toolkit — Product rules, development rules and review process
 
-Version v0.7.4 (last revised 2026-10-30) · 2026-10-17 · Status: **Approved (2026-10-17)**; v0.7.1 adds the "progress record" Definition of Done item at the owner's request (a process change; it does not affect requirements or calculation rules)
+Version v0.7.5 (last revised 2026-11-03) · 2026-10-17 · Status: **Approved (2026-10-17)**; v0.7.1 adds the "progress record" Definition of Done item at the owner's request (a process change; it does not affect requirements or calculation rules)
 
 - v0.1 → v0.2: changed in response to Codex review items #19 #20 #22 (you cannot approve your own PR, release timing, anonymised feedback, scope freeze).
 - v0.7.1 → v0.7.2 (2026-10-20, clarification): D2 now says the hurdle is exact too, as in PRD C-01.
 - v0.7.2 → v0.7.3 (2026-10-23, process): adds the G2a small-fix track (owner: "as suggested").
 - v0.7.3 → v0.7.4 (2026-10-30, process): cross-review by risk; a G2a small fix that only changes styles, copy, docs or the website skips Codex (owner: "as suggested").
+- v0.7.4 → v0.7.5 (2026-11-03, process): the private development repository moved into the `deal-ops` organization; Vercel's free plan cannot deploy from a private organization repository, so production now deploys from the `release` branch of this public repository (as the website does); the development repository has no preview links any more, and acceptance uses a local production build (owner: option C).
 
 ---
 
@@ -66,7 +67,7 @@ G0 requirements review → G1 design review → [freeze lifted] → G2 every PR 
 1. Before opening the PR: the PR description lists the requirement IDs and test case IDs covered, and which Definition of Done items do not apply (with reasons).
 2. CI: type check → lint → unit tests → due-case execution check → Python recalculation → build (+ end-to-end from M2). CI runs "all implemented regression tests + the cases due in the current milestone"; G3 requires every P0 case to have run and passed.
 3. Codex code review: against PRD §5 and the test plan, looking specifically for paths that get money wrong; comments and their handling are recorded (kept in the private development repository; summarised in `docs/en/REVIEW_SUMMARY.md`).
-4. Vercel preview link: the owner accepts only the checklist items **this PR touches**.
+4. Local production build (`npm run build`, opened locally; since 2026-11-03 the development repository has no Vercel previews): the owner accepts only the checklist items **this PR touches**.
 5. The owner comments "Accepted" on the PR and **clicks merge himself** (GitHub does not let you approve your own PR, so a comment + merging himself is used instead).
 
 ### G2a small-fix track (v0.7.3, owner 2026-10-23: "as suggested")
@@ -82,8 +83,8 @@ In the owner's words: an hour from request to delivery for this is too slow. The
 - The PR description says "small-fix track" and which conditions hold.
 
 ### G3 release
-1. Run the **full** manual acceptance checklist and all automated tests on the `main` preview link.
-2. After the owner confirms, merge `main` into `release`, and production goes live.
+1. Run the **full** manual acceptance checklist and all automated tests on a local production build of `main`.
+2. After the owner confirms, merge `main` into `release` in the private development repository (kept as a record); refresh `main` of this repository, check that its build produces the same files as the development build, then fast-forward this repository's `release` to that commit, and production goes live (Vercel deploys from this repository's `release`, since 2026-11-03).
 3. Run the smoke test on the production address; tag; write release notes (listing only tested features).
 4. After this repository is refreshed, set `toolkit.ref` in the website repository to the new commit and run the website checks; if the app's wording or figures changed, update the website too (the website quotes the app word for word).
 
@@ -100,7 +101,7 @@ Before a PR merges it must meet the following (for items that do not apply, say 
 - [ ] Invalid-input cases exist and pass
 - [ ] CI fully green (including the TC coverage check and Python recalculation)
 - [ ] Codex review comments handled and recorded (or, for a G2a fix that skips Codex, the reason stated)
-- [ ] The owner has accepted the checklist items this PR touches on the preview link, and commented Accepted
+- [ ] The owner has accepted the checklist items this PR touches on a local production build, and commented Accepted
 - [ ] Docs updated to match
 - [ ] This stage's section in the progress record (`docs/PROGRESS.md`; English snapshot `docs/en/PROGRESS.md`) updated (goal / what was done / how it was verified / reviews / decisions / open items / links), and synced to the shared Google Doc
 
