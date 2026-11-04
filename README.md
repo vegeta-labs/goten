@@ -10,7 +10,7 @@ Every figure is checked automatically, and the exit waterfall is explained step 
 
 **Live:** https://deal-ops-toolkit.vercel.app (release `v1.2.3`)
 
-**Website:** https://deal-ops-toolkit-site.vercel.app (source: https://github.com/deal-ops/deal-ops-site)
+**Website:** https://vegeta-ops.vercel.app/toolkit/ (source: https://github.com/deal-ops/deal-ops-site)
 
 ## Try it
 

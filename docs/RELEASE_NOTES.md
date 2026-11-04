@@ -1,4 +1,4 @@
-# Deal Ops Toolkit — release notes
+# Goten — Deal Calculations — release notes
 
 Rule P9: only what is implemented, tested and deployed is listed. Each line names the requirement and the tests that cover it.
 
