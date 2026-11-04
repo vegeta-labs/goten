@@ -511,3 +511,9 @@ Every finding is fixed with a test and a mutant. The major ones are of one kind:
 **Acceptance and release:** The owner accepted it on 2026-10-29 ("I accept this version") and approved going live. The app is unchanged (build `index-tN1Qq31h.js`). Production branch `release`; the live security headers match `site/vercel.json` and the smoke test passed.
 
 **Own repository (2026-11-02):** the website moved to https://github.com/deal-ops/deal-ops-site and deploys from there; same address, and every live file and header unchanged (checked byte for byte before and after).
+
+## Goten branding — v1.2.3
+
+2026-11-04. The product is named **Goten — Deal Calculations**, part of **Vegeta**. The heading, functional description, breadcrumb, browser title/description and feedback email subject now use that name. Current product introductions have been updated; historical release records retain their original names.
+
+The application address, package name, saved-data keys, schema, import/export formats and calculations are unchanged. A browser upgrade check using the previous production build preserved the saved sample deal, theme and tour progress byte for byte. Build/typecheck, lint, shared-token checks, unit regression (420 passed, one benchmark skipped; 199/199 due cases), Python oracle self-check (178/178), and browser regression (32 tests; 11/11 due cases) passed.

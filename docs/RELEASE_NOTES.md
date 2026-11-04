@@ -2,6 +2,12 @@
 
 Rule P9: only what is implemented, tested and deployed is listed. Each line names the requirement and the tests that cover it.
 
+## v1.2.3 — 2026-11-04
+
+**Goten — Deal Calculations**, part of Vegeta. The app heading, breadcrumb, browser title and description, feedback email subject (R-X-06), and current product introduction use the confirmed product name. Tests: TC-X-02 and P6 branding/breadcrumb checks; existing end-to-end persistence, privacy, reconciliation, allocation and distribution cases.
+
+The application address, package name, saved-data keys, schemas, import/export formats and calculations are unchanged. Existing browser data, theme and tour progress remain readable. Historical release records retain their original product names.
+
 ## v1.2.2 — released 2026-10-28
 
 Live at https://deal-ops-toolkit.vercel.app (build `index-tN1Qq31h.js`). The tag `v1.2.2` and the release commit `b5bf8f1` are in the private development repository. Production smoke test on 2026-10-28: the sample deal's figures match Test Plan §3; at phone width the copy box and the withdraw form open wholly on screen; 12 requests, all same-origin GETs without bodies or query strings; no console errors; the security headers match `vercel.json` (Tech Design §4).

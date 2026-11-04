@@ -332,7 +332,8 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
       {/* sidebar from 1024px (the M4 visual plan (not published)); stacked above the page on narrower screens */}
       <aside className="side" aria-label="Deal and modules">
         <div className="brand">
-          <h1 className="wordmark">Deal Ops Toolkit</h1>
+          <h1 className="wordmark">Goten</h1>
+          <p className="eyebrow">Deal Calculations · Vegeta</p>
           <div className="deal-card">
             <p className="eyebrow">Deal</p>
             <p className="deal-name" data-testid="deal-name">
@@ -390,7 +391,7 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
       <div className="main-col">
         <header className="top">
           <p className="crumb">
-            Deal Ops Toolkit / <span className="crumb-here">{TAB_LABEL[tab]}</span>
+            Goten / <span className="crumb-here">{TAB_LABEL[tab]}</span>
           </p>
           <div className="top-actions">
             {/* during the tour, reloading the sample is a restart of the tour (§4) */}

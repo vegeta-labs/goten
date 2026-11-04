@@ -211,6 +211,7 @@ describe('M2 interface', () => {
     render(<App storage={new MemoryStorage()} />)
     const link = screen.getByRole('link', { name: /feedback/i })
     expect(link.getAttribute('href')).toMatch(/^mailto:haixiangyuann@gmail\.com\?/) // the owner's address, not a placeholder
+    expect(new URL(link.getAttribute('href')!).searchParams.get('subject')).toBe('Goten feedback')
     expect(link.parentElement!.textContent).toContain("Please don't send real investor information")
   })
 
@@ -1044,12 +1045,14 @@ describe('M4 visual refresh (the M4 visual plan (not published) v0.2)', () => {
 
   it('P6 the breadcrumb names the open module and follows the tabs', () => {
     render(<App storage={new MemoryStorage()} />)
+    expect(screen.getByRole('heading', { level: 1, name: 'Goten' })).toBeTruthy()
+    expect(screen.getByText('Deal Calculations · Vegeta')).toBeTruthy()
     const crumb = () => document.querySelector('.crumb')!.textContent
-    expect(crumb()).toBe('Deal Ops Toolkit / Reconciliation')
+    expect(crumb()).toBe('Goten / Reconciliation')
     fireEvent.click(screen.getByRole('tab', { name: /Allocation/ }))
-    expect(crumb()).toBe('Deal Ops Toolkit / Allocation')
+    expect(crumb()).toBe('Goten / Allocation')
     fireEvent.click(screen.getByRole('tab', { name: 'Deal settings' }))
-    expect(crumb()).toBe('Deal Ops Toolkit / Deal settings')
+    expect(crumb()).toBe('Goten / Deal settings')
   })
 
   // a list section stays open once the person adds a row or imports, so the new row or the message is seen (G3 M-11)

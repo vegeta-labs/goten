@@ -8,7 +8,7 @@ export function Footer() {
       <p data-testid="footer-disclaimer">{DISCLAIMER_TEXT}</p>
       <p>{PRIVACY_TEXT}</p>
       <p>
-        <a href={`mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent('Deal Ops Toolkit feedback')}`}>Send feedback by email</a>{' '}
+        <a href={`mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent('Goten feedback')}`}>Send feedback by email</a>{' '}
         <span className="warn-text">Please don&apos;t send real investor information.</span>
       </p>
       <details className="glossary">

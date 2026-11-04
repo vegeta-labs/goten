@@ -1,6 +1,6 @@
-# Deal Ops Toolkit
+# Goten — Deal Calculations
 
-A browser tool for SPV deal operations. It takes one deal through three steps:
+Goten is the deal calculations module of Vegeta, software for SPV and syndicate operations teams and the fund administration teams supporting them. This browser tool takes one deal through three steps:
 
 1. **Payment reconciliation:** match bank receipts to investor commitments.
 2. **Closing allocation:** work out what each investor invests, pays in fees and gets back, and what is wired to the company.
@@ -8,7 +8,7 @@ A browser tool for SPV deal operations. It takes one deal through three steps:
 
 Every figure is checked automatically, and the exit waterfall is explained step by step. Around these steps: chase and payment-query texts you copy and send yourself, an activity log of every decision, withdrawal before closing, and changing who pays a percentage fee before closing (recorded as a reversible adjustment). Deal data is processed and saved in your browser; the app sends none of it anywhere.
 
-**Live:** https://deal-ops-toolkit.vercel.app (release `v1.2.2`)
+**Live:** https://deal-ops-toolkit.vercel.app (release `v1.2.3`)
 
 **Website:** https://deal-ops-toolkit-site.vercel.app (source: https://github.com/deal-ops/deal-ops-site)
 

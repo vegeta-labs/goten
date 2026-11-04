@@ -1,5 +1,7 @@
 # Docs
 
+Current product: **Goten — Deal Calculations**, part of **Vegeta**. Historical snapshots below retain the names used at their releases.
+
 English snapshots at release v1.0.0 (the Chinese documents are the source of truth):
 
 - [`en/01_PRD.md`](en/01_PRD.md): requirements, numbered rules (R-*, C-*, I-*) and decisions
