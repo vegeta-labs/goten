@@ -207,11 +207,13 @@ describe('M2 interface', () => {
     expect(storage.length).toBe(0)
   })
 
-  it('TC-X-02 the footer has a mailto feedback link with "Please don\'t send real investor information"', () => {
+  it('TC-X-02 the footer links to the feedback form in a new tab with "Please don\'t send real investor information"', () => {
     render(<App storage={new MemoryStorage()} />)
     const link = screen.getByRole('link', { name: /feedback/i })
-    expect(link.getAttribute('href')).toMatch(/^mailto:haixiangyuann@gmail\.com\?/) // the owner's address, not a placeholder
-    expect(new URL(link.getAttribute('href')!).searchParams.get('subject')).toBe('Goten feedback')
+    expect(link.getAttribute('href')).toBe('https://docs.google.com/forms/d/e/1FAIpQLSd7sInr8uvQMiUPaVoDEmFGGu79NCoCVDUbqTYnYjxEr1VrDQ/viewform')
+    expect(link.getAttribute('target')).toBe('_blank')
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer')
+    expect(document.querySelector('a[href^="mailto:"]')).toBeNull()
     expect(link.parentElement!.textContent).toContain("Please don't send real investor information")
   })
 

@@ -8,7 +8,7 @@ Goten is the deal calculations module of Vegeta, software for SPV and syndicate 
 
 Every figure is checked automatically, and the exit waterfall is explained step by step. Around these steps: chase and payment-query texts you copy and send yourself, an activity log of every decision, withdrawal before closing, and changing who pays a percentage fee before closing (recorded as a reversible adjustment). Deal data is processed and saved in your browser; the app sends none of it anywhere.
 
-**Live:** https://deal-ops-toolkit.vercel.app (release `v1.2.3`)
+**Live:** https://deal-ops-toolkit.vercel.app (release `v1.2.4`)
 
 **Website:** https://vegeta-ops.vercel.app/toolkit/ (source: https://github.com/vegeta-labs/vegeta-site)
 

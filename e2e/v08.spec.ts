@@ -32,7 +32,7 @@ test('E2E-08 copy a chase message, undo t03 and copy the query, see both in the 
 
   // copying sent nothing: no request at all after the review
   expect(requests).toEqual([])
-  expect(await page.locator('a[href^="mailto:"]').count()).toBe(1) // only the feedback link in the footer
+  expect(await page.locator('a[href^="mailto:"]').count()).toBe(0)
   expect(problems).toEqual([])
 })
 

@@ -205,7 +205,7 @@ Unless stated: fixed mode; k 20%; h 0; c 0; exit costs 0; n 5; capital A £60,00
 | TC-DIS-31 | C-DIS mode exclusivity | Fixed mode with a tier table; tiered mode with a fixed carry rate | Both input errors |
 | TC-DIS-25 | — | (removed in v0.7: share-count check under the share-count basis) | — | — |
 | TC-X-01 〔M2〕 | R-X-05 | Render the UI | All 11 terms listed in PRD R-X-05 have explanatory text | — |
-| TC-X-02 〔M2〕 | R-X-06 | Render the footer | Feedback link is `mailto:`, with "Please don't send real investor information" next to it | — |
+| TC-X-02 〔M2〕 | R-X-06 | Render the footer | Feedback link is the form address, opening in a new tab; no `mailto:` on the page; "Please don't send real investor information" next to it | — |
 | TC-X-03 〔M4〕 | R-X-04 | Theme switch: default → choose Dark → reopen → Clear all data | Default is System and the page carries no theme mark; after Dark the page is marked dark and is still Dark after reopening; after "Clear all data" it is back to System and no theme is stored | — |
 | TC-X-04 〔M4〕 | R-X-02 | Saving in the browser: ① storage throws `QuotaExceededError` (including Firefox's `NS_ERROR_DOM_QUOTA_REACHED` and older browsers' code 22 / 1014); ② it throws another error (such as `SecurityError`), or the browser already refuses when `localStorage` is read (the usual case when site data is blocked), or `localStorage` is `null`; ③ saving then succeeds again | ① the "storage for this page is full" sentence shows, not "storage is blocked"; ② the "storage is blocked" sentence shows; ③ the message goes away; the message sits in a status region that screen readers announce; the app never fails in any case | — |
 
@@ -323,7 +323,7 @@ Every other row (units, each person's exit proceeds) is generated in M1 by both 
 - E2E-03 Privacy: record all requests throughout (including same-origin): only GETs for static assets, no request bodies, no investor names or amounts in any URL.
 - E2E-04 Local storage: data is still there after refresh; gone after "Clear".
 - E2E-05 〔M3〕 Guided tour: walk from the first step to the last; every step's highlight target exists.
-- E2E-06 The disclaimer is shown on first open; the footer has the disclaimer and the feedback email link.
+- E2E-06 The disclaimer is shown on first open; the footer has the disclaimer and the feedback form link.
 - E2E-07 〔M3〕 Complete the manual checklist steps M-01 to M-07 at 375px width (P1).
 - E2E-08 〔M5〕 After review of the sample, copy one chase message; undo the t03 confirmation, then copy Chloe's query message and open the activity log to see the matching entries; throughout, only GETs for static assets (copying makes no request).
 - E2E-09 〔M6〕 Starting from the sample after review: mark Lucas Meyer withdrawn → carry into allocation and he is not there; change the minimum to £970, change the platform fee to company pays and apply → reconciliation shows the adjustments and overpayments; reverse and everything is restored.
@@ -337,7 +337,7 @@ PRs check only the items relevant to that PR; before release, check all of them.
 - [ ] M-05 (removed in v0.7: direct holding) Check that the UI shows the holding structure as nominee (bare trust), with no option to switch
 - [ ] M-06 Change share price to `abc` → no result, check shows "unavailable", export disabled
 - [ ] M-07 (Continue from M-03) Carry into exit; numbers match §3; switch to tiered mode; each step's explanation is understandable
-- [ ] M-08 Disclaimer on first open and in the footer; feedback email link opens; UI fully in English
+- [ ] M-08 Disclaimer on first open and in the footer; feedback form link opens in a new tab; UI fully in English
 - [ ] M-09 All text readable in dark mode; the theme switch System / Light / Dark works in all three positions (P1)
 - [ ] M-10 Complete M-01 to M-03 on a phone (P1)
 - [ ] M-11 Walk through from scratch with a 5-person roster you make up yourself; note where you get stuck

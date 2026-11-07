@@ -2,6 +2,10 @@
 
 Rule P9: only what is implemented, tested and deployed is listed. Each line names the requirement and the tests that cover it.
 
+## v1.2.4 — 2026-11-07
+
+The footer's feedback link now opens a feedback form in a new tab, and the app no longer shows an email address (R-X-06; TC-X-02, E2E-06). Calculations, import and export formats, and saved data are unchanged.
+
 ## v1.2.3 — 2026-11-04
 
 **Goten — Deal Calculations**, part of Vegeta. The app heading, breadcrumb, browser title and description, feedback email subject (R-X-06), and current product introduction use the confirmed product name. Tests: TC-X-02 and P6 branding/breadcrumb checks; existing end-to-end persistence, privacy, reconciliation, allocation and distribution cases.

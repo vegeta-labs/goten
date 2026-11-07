@@ -171,7 +171,7 @@ test('E2E-04 data survives a reload; "Clear all data" wipes it', async ({ page }
   for (const s of ['Northwind', 'Amelia', 'NW-001']) expect(saved).not.toContain(s)
 })
 
-test('E2E-06 first open shows the disclaimer; the footer has the disclaimer and a feedback email link', async ({ page }) => {
+test('E2E-06 first open shows the disclaimer; the footer has the disclaimer and a feedback form link', async ({ page }) => {
   const problems = watchConsole(page)
   await page.goto('/')
   const dialog = page.getByRole('dialog', { name: 'Before you start' })
@@ -183,8 +183,9 @@ test('E2E-06 first open shows the disclaimer; the footer has the disclaimer and 
   await page.reload()
   await expect(page.getByRole('dialog', { name: 'Before you start' })).toHaveCount(0)
   await expect(page.getByTestId('footer-disclaimer')).toContainText('not investment, tax or legal advice')
-  const link = page.getByRole('link', { name: 'Send feedback by email' })
-  await expect(link).toHaveAttribute('href', /^mailto:/)
+  const link = page.getByRole('link', { name: 'Send feedback' })
+  await expect(link).toHaveAttribute('href', /^https:\/\/docs\.google\.com\/forms\//)
+  await expect(link).toHaveAttribute('target', '_blank')
   await expect(page.locator('footer')).toContainText("Please don't send real investor information.")
   expect(problems).toEqual([])
 })

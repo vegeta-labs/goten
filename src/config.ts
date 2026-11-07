@@ -1,5 +1,5 @@
-// R-X-06: the only feedback channel is an email link (PRD §8 decision 2). Owner's own address (owner decision 2026-10-20).
-export const FEEDBACK_EMAIL = 'haixiangyuann@gmail.com'
+// R-X-06: the only feedback channel is one link to this form (PRD §8 decision 2).
+export const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSd7sInr8uvQMiUPaVoDEmFGGu79NCoCVDUbqTYnYjxEr1VrDQ/viewform'
 
 // R-X-02, verbatim.
 export const PRIVACY_TEXT =

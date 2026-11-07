@@ -1,5 +1,5 @@
 // R-X-02, R-X-03, R-X-05, R-X-06.
-import { DISCLAIMER_TEXT, FEEDBACK_EMAIL, PRIVACY_TEXT } from '../config'
+import { DISCLAIMER_TEXT, FEEDBACK_FORM_URL, PRIVACY_TEXT } from '../config'
 import { GLOSSARY } from '../glossary'
 
 export function Footer() {
@@ -8,7 +8,10 @@ export function Footer() {
       <p data-testid="footer-disclaimer">{DISCLAIMER_TEXT}</p>
       <p>{PRIVACY_TEXT}</p>
       <p>
-        <a href={`mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent('Goten feedback')}`}>Send feedback by email</a>{' '}
+        {/* a new tab, so the deal stays open in this one */}
+        <a href={FEEDBACK_FORM_URL} target="_blank" rel="noopener noreferrer">
+          Send feedback
+        </a>{' '}
         <span className="warn-text">Please don&apos;t send real investor information.</span>
       </p>
       <details className="glossary">

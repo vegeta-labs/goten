@@ -517,3 +517,7 @@ Every finding is fixed with a test and a mutant. The major ones are of one kind:
 2026-11-04. The product is named **Goten — Deal Calculations**, part of **Vegeta**. The heading, functional description, breadcrumb, browser title/description and feedback email subject now use that name. Current product introductions have been updated; historical release records retain their original names.
 
 The application address, package name, saved-data keys, schema, import/export formats and calculations are unchanged. A browser upgrade check using the previous production build preserved the saved sample deal, theme and tour progress byte for byte. Build/typecheck, lint, shared-token checks, unit regression (420 passed, one benchmark skipped; 199/199 due cases), Python oracle self-check (178/178), and browser regression (32 tests; 11/11 due cases) passed.
+
+## Feedback moves to a form link — v1.2.4
+
+2026-11-07, small-fix channel. The footer's feedback link now opens a form in a new tab, and the page shows no personal address. No change to calculations, formats or saved data.

@@ -89,7 +89,7 @@ describe('v0.8 messages (R-REC-10)', () => {
     expect(screen.queryByRole('button', { name: 'Copy message for Amelia Hart' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Copy message for Hugo Bernard' })).toBeNull() // overpaid: a refund, not a chase
     expect(screen.getByRole('button', { name: 'Copy message for James Whitfield' })).toBeTruthy()
-    expect(document.querySelector('a[href^="mailto:"]:not(footer a)')).toBeNull()
+    expect(document.querySelector('a[href^="mailto:"]')).toBeNull()
     expect(open).not.toHaveBeenCalled()
   })
 
