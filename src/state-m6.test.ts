@@ -7,7 +7,10 @@ import {
   commitmentRow,
   currencyLocked,
   feePayerChangeBlock,
+  importLossCount,
+  importLossText,
   initialState,
+  investorImportLoss,
   makeReducer,
   parseSaved,
   type Action,
@@ -637,3 +640,80 @@ function twoInvestors(): AppState {
   s = handoff(s)
   return run(s, { type: 'applyFeePayerChange', feeId: f.id, to: 'company', consent: true })
 }
+
+describe('R-REC-01.3 what an investor list import would void', () => {
+  const VOID_FP = 'void'
+  const blanked = (s: AppState) => s.commitments.map((c, i) => ({ ...c, id: `gen-${i}` }))
+  const ids = (rows: { id: string }[]) => new Set(rows.map((r) => r.id))
+  const activeLines = (s: AppState) => s.feePayerChanges.flatMap((c) => c.lines).filter((l) => l.voided).length
+  const voidDecisions = (s: AppState) => Object.values(s.decisions).filter((d) => d.lineFp === VOID_FP).length
+
+  it('TC-REC-55 the counts equal what the real import voids, and the simulation changes nothing', () => {
+    const s = applied((x) => run(x, withdraw('c12')))
+    const before = JSON.stringify(s)
+    const rows = blanked(s)
+    const loss = investorImportLoss(s, rows, ids(rows))
+    expect(JSON.stringify(s)).toBe(before)
+    const after = run(s, { type: 'replaceCommitments', rows })
+    expect(loss.decisions).toBe(voidDecisions(after) - voidDecisions(s))
+    expect(loss.withdrawals).toBe(1)
+    expect(Object.keys(after.withdrawals)).toEqual([])
+    expect(loss.adjustments).toBe(activeLines(after) - activeLines(s))
+    expect(loss.decisions).toBeGreaterThan(0)
+    expect(loss.adjustments).toBeGreaterThan(0)
+    expect(loss.blankIds).toBe(true)
+    expect(events(after).filter((e) => e === 'adjustment_voided').length).toBe(loss.adjustments)
+    expect(events(after).filter((e) => e === 'withdrawal_voided').length).toBe(loss.withdrawals)
+    expect(importLossText(loss)).toBe(
+      `This import will void ${loss.decisions} decisions, 1 withdrawal mark and ${loss.adjustments} fee payer adjustments (rows with a blank investor_id get new IDs). This cannot be undone.`,
+    )
+  })
+
+  it('TC-REC-55 re-importing with the same IDs voids nothing', () => {
+    const s = applied((x) => run(x, withdraw('c12')))
+    const loss = investorImportLoss(s, s.commitments)
+    expect(importLossCount(loss)).toBe(0)
+    expect(loss.blankIds).toBe(false)
+  })
+
+  it('TC-REC-55 one changed reference is counted, without blaming blank IDs', () => {
+    const s = run(reviewed(), withdraw('c12'))
+    const rows = s.commitments.map((c) => (c.id === 'c12' ? { ...c, reference: 'NW-099' } : c))
+    const loss = investorImportLoss(s, rows)
+    expect(loss).toEqual({ decisions: 0, withdrawals: 1, adjustments: 0, blankIds: false })
+    expect(importLossText(loss)).toBe('This import will void 1 withdrawal mark. This cannot be undone.')
+  })
+
+  it('TC-REC-55 entries already void are not counted again', () => {
+    const s = applied()
+    const voidedOnce = run(s, edit(s, 'c01', 'cashDue', '10500'))
+    const line = voidedOnce.feePayerChanges[0].lines.find((l) => l.investorId === 'c01')!
+    expect(line.voided).toBe(true)
+    const rows = voidedOnce.commitments.map((c) => (c.id === 'c02' ? { ...c, reference: 'NW-099' } : c))
+    expect(investorImportLoss(voidedOnce, rows).adjustments).toBe(1)
+    const decided = reviewed()
+    const chloe = decided.commitments.map((c) => (c.id === 'c03' ? { ...c, reference: 'NW-099' } : c))
+    const once = run(decided, { type: 'replaceCommitments', rows: chloe })
+    expect(voidDecisions(once)).toBe(1)
+    expect(investorImportLoss(once, chloe).decisions).toBe(0)
+  })
+
+  it('TC-REC-55 an investor ID of __proto__ is counted like any other', () => {
+    const start = reviewed()
+    const s = run(run(start, edit(start, 'c12', 'id', '__proto__')), withdraw('__proto__'))
+    expect(Object.keys(s.withdrawals)).toEqual(['__proto__'])
+    expect(
+      investorImportLoss(
+        s,
+        s.commitments.filter((c) => c.id !== '__proto__'),
+      ).withdrawals,
+    ).toBe(1)
+  })
+
+  it('TC-REC-55 a blank ID on a new investor does not get the blame for someone else leaving', () => {
+    const s = run(reviewed(), withdraw('c12'))
+    const newcomer = { id: 'gen-new', name: 'New Person', email: '', reference: 'NW-777', cashDue: '1000', scheme: 'none' }
+    const rows = [...s.commitments.filter((c) => c.id !== 'c12'), newcomer]
+    expect(investorImportLoss(s, rows, new Set(['gen-new']))).toEqual({ decisions: 0, withdrawals: 1, adjustments: 0, blankIds: false })
+  })
+})

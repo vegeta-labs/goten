@@ -51,6 +51,9 @@ Deal data stays in the browser (memory and local storage) and is never put in a 
 
 ## Documents
 
+- [User guide](docs/en/use/README.md): for operations staff
+- [Build and run](docs/en/build/README.md): for technical users
+
 English snapshots of the project documents, taken at release v1.0.0 and updated at v1.1.0, v1.1.1, v1.2.0, v1.2.1 and v1.2.2. The Chinese originals are the source of truth and are kept in the development repository; the Chinese test plan is included because the coverage scripts read it.
 
 - [Requirements (PRD)](docs/en/01_PRD.md)
@@ -73,7 +76,7 @@ npm test                  # unit tests, including the comparison with the Python
 npm run coverage:check    # every test-plan case due at the current milestone ran and passed
 npx playwright install chromium   # once, before the end-to-end tests
 npm run e2e:check         # end-to-end tests on a production build under the production security policy
-npm run mutation          # mutation testing (about 10 minutes; edits source files temporarily)
+npm run mutation          # mutation testing (45 minutes or more; edits source files temporarily)
 ```
 
 ## Fonts

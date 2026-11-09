@@ -1134,6 +1134,7 @@ describe('M4 visual refresh (the M4 visual plan (not published) v0.2)', () => {
     paste(0, 'name,reference,cash_due\nAnn Lee,AL-001,1000')
     expect(screen.getByText('Imported 1 investors. Amounts read as GBP.')).toBeTruthy()
     click('Load sample deal')
+    click('Replace with sample')
     expect(screen.queryByText('Imported 1 investors. Amounts read as GBP.')).toBeNull()
     expect(sectionOf(/^Investors \(12\)$/).open).toBe(false)
   })
@@ -1143,6 +1144,7 @@ describe('M4 visual refresh (the M4 visual plan (not published) v0.2)', () => {
     click('I understand')
     click('Add investor')
     click('Load sample deal')
+    click('Replace with sample')
     expect(sectionOf(/^Investors \(12\)$/).open).toBe(false)
   })
 

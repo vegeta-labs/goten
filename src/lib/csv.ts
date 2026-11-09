@@ -192,7 +192,8 @@ function readTable(text: string, kind: keyof typeof SCHEMAS, currency: Currency)
   return { table: { rows, rowNumbers: body.map((r) => r.line) }, errors, ignored }
 }
 
-export type ImportResult<T> = { ok: true; rows: T[]; ignoredColumns: string[] } | { ok: false; errors: InputError[] }
+/** `generatedIds`: the IDs filled in because the file left them blank (investor list only). */
+export type ImportResult<T> = { ok: true; rows: T[]; ignoredColumns: string[]; generatedIds?: ReadonlySet<string> } | { ok: false; errors: InputError[] }
 
 function parseScheme(raw: string): TaxScheme | null {
   const s = trimAscii(raw).toUpperCase()
@@ -232,8 +233,9 @@ export function importCommitments(text: string, currency: Currency): ImportResul
   validateCommitments(rows, e, (i) => `row ${table.rowNumbers[i]}`, true)
   const all = [...errors, ...e.list]
   if (all.length) return { ok: false, errors: all }
+  const blank = rows.filter((r) => !r.id)
   fillIds(rows, 'inv', new Set(rows.map((r) => r.id).filter(Boolean)))
-  return { ok: true, rows, ignoredColumns: ignored }
+  return { ok: true, rows, ignoredColumns: ignored, generatedIds: new Set(blank.map((r) => r.id)) }
 }
 
 export interface BankImport {

@@ -2,6 +2,10 @@
 
 Rule P9: only what is implemented, tested and deployed is listed. Each line names the requirement and the tests that cover it.
 
+## v1.2.5 — 2026-11-09
+
+Two actions that can lose work now ask first. **Load sample deal** asks before replacing a deal that has anything to lose (R-X-01.3; TC-X-21, TC-X-22, TC-X-23). Importing an investor list says how many confirmed decisions, withdrawal marks and fee payer adjustments it would void, and offers **Import anyway** or **Cancel** (R-REC-01.3; TC-REC-56, TC-REC-57). Calculations, import and export formats, and saved data are unchanged.
+
 ## v1.2.4 — 2026-11-07
 
 The footer's feedback link now opens a feedback form in a new tab, and the app no longer shows an email address (R-X-06; TC-X-02, E2E-06). Calculations, import and export formats, and saved data are unchanged.

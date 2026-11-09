@@ -1096,6 +1096,15 @@ tr.tour-target > td:first-child {
   align-items: stretch;
   gap: 8px;
 }
+/* the same confirmation in a wide area: buttons at their own width, under the question */
+.confirm-row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.confirm-row > span {
+  flex-basis: 100%;
+}
 /* 375px: a bottom drawer that can fold to one line */
 @media (max-width: 600px) {
   .tour-card,
@@ -1168,6 +1177,7 @@ tr.tour-target > td:first-child {
   .row-actions,
   .tour-card,
   details.import,
+  .confirm-row,
   .disclaimer {
     display: none !important;
   }

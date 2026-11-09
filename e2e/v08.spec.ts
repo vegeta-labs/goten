@@ -100,3 +100,39 @@ test('E2E-09 375px: the manual-copy box and the withdraw form open wholly in vie
   await inView('consent box', consent)
   await inView('confirm button', page.getByRole('button', { name: 'Confirm withdrawal' }))
 })
+
+test('E2E-10 an import that would void data, and loading the sample over it, both ask first; cancel keeps everything', async ({ page }) => {
+  const problems = watchConsole(page)
+  let browserDialogs = 0
+  page.on('dialog', (d) => {
+    browserDialogs++
+    void d.dismiss()
+  })
+  await start(page)
+  await reviewSample(page)
+  await page.getByRole('button', { name: 'Mark Lucas Meyer withdrawn' }).click()
+  await page.getByLabel('Written consent from the investor received').check()
+  await page.getByRole('button', { name: 'Confirm withdrawal' }).click()
+  await expect(page.getByRole('button', { name: /Undo.*Lucas Meyer/ })).toBeVisible()
+
+  await page.getByText(/^Investors \(12\)$/).click()
+  await page.getByText('Import investors (replaces the list)').click()
+  await page.getByLabel('Paste CSV text (first line is the header)').first().fill('investor_id,name,email,reference,cash_due\n,Lucas Meyer,,NW-012,5000')
+  await page.getByRole('button', { name: 'Import pasted text' }).first().click()
+  const warning = page.getByRole('alertdialog')
+  await expect(warning).toContainText('withdrawal mark')
+  await expect(warning).toContainText('rows with a blank investor_id get new IDs')
+  await warning.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByText(/^Investors \(12\)$/)).toBeVisible()
+
+  await page.getByRole('button', { name: 'Load sample deal' }).click()
+  await expect(page.getByRole('alertdialog')).toContainText('Replace the current deal with the sample? This cannot be undone.')
+  await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByText('Nothing to review.')).toBeVisible()
+  await page.getByRole('button', { name: 'Load sample deal' }).click()
+  await page.getByRole('button', { name: 'Replace with sample' }).click()
+  await expect(page.getByRole('button', { name: 'Confirm Chloe Martin' })).toBeVisible()
+
+  expect(browserDialogs).toBe(0)
+  expect(problems).toEqual([])
+})

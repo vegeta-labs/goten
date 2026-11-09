@@ -5,7 +5,17 @@ import { AGED_NOTE, decide, type Commitment, type CommitmentStatus, type LineRes
 import type { InputError, Outcome } from '../lib/outcome'
 import { importBank, importCommitments } from '../lib/csv'
 import { chaseListCsv, ledgerCsv } from '../lib/exports'
-import { bankRow, commitmentRow, type Action, type AppState } from '../state'
+import {
+  bankRow,
+  commitmentRow,
+  importLossCount,
+  importLossText,
+  investorImportLoss,
+  type Action,
+  type AppState,
+  type CommitmentRow,
+  type ImportLoss,
+} from '../state'
 import { deriveBankLines, friendly } from '../derive'
 import { Cell, Checks, ErrorList, ImportBox, Notice, Section, Term, UpdatingNotice } from './common'
 import { useListMessage } from './listMessage'
@@ -73,11 +83,35 @@ export function Reconciliation({
   const sym = SYMBOL[cur] // money fields say which currency they are in (owner review 2026-10-20)
   const summaryRef = useRef<HTMLHeadingElement>(null)
 
+  // R-REC-01.3: an import that would void something waits here. It only stands for the data it was checked against: if anything
+  // changes while it is open, the counts could be wrong, so it closes and nothing is imported.
+  const [heldImport, setHeldImport] = useState<{ rows: CommitmentRow[]; ignoredColumns: string[]; loss: ImportLoss; basis: AppState } | null>(null)
+  const held = heldImport?.basis === state ? heldImport : null
+  const askingImport = held !== null
+  const cancelImportBtn = useRef<HTMLButtonElement>(null)
+  // the control that started the import (paste button or file input): keyboard users go back to it
+  const importOrigin = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    if (askingImport) cancelImportBtn.current?.focus()
+  }, [askingImport])
+  const applyInvestors = (rows: CommitmentRow[], ignoredColumns: string[]) => {
+    dispatch({ type: 'replaceCommitments', rows })
+    setInvestorMsg({ ok: true, text: `Imported ${rows.length} investors. Amounts read as ${cur}.${ignored(ignoredColumns)}` }, true)
+  }
+  const closeHeldImport = () => {
+    setHeldImport(null)
+    importOrigin.current?.focus()
+  }
   const importInvestors = (text: string) => {
+    // R-REC-01.3: a new attempt replaces any warning still open, so Import anyway can only apply what it warned about
+    setHeldImport(null)
     const r = importCommitments(text, cur)
     if (!r.ok) return setInvestorMsg({ ok: false, errors: r.errors }, false)
-    dispatch({ type: 'replaceCommitments', rows: r.rows.map(commitmentRow) })
-    setInvestorMsg({ ok: true, text: `Imported ${r.rows.length} investors. Amounts read as ${cur}.${ignored(r.ignoredColumns)}` }, true)
+    const rows = r.rows.map(commitmentRow)
+    const loss = investorImportLoss(state, rows, r.generatedIds)
+    if (importLossCount(loss) === 0) return applyInvestors(rows, r.ignoredColumns)
+    importOrigin.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setHeldImport({ rows, ignoredColumns: r.ignoredColumns, loss, basis: state })
   }
   const importStatement = (text: string) => {
     let existing: ReturnType<typeof deriveBankLines>['input'] = []
@@ -145,8 +179,28 @@ export function Reconciliation({
             </>
           }
           onImport={importInvestors}
+          onTextEdit={() => setHeldImport(null)}
         />
-        <ImportResult msg={investorMsg} />
+        {held ? (
+          <div className="notice bad confirm-clear confirm-row" role="alertdialog" aria-labelledby="import-loss-q">
+            <span id="import-loss-q">{importLossText(held.loss)}</span>
+            <button
+              type="button"
+              className="danger"
+              onClick={() => {
+                applyInvestors(held.rows, held.ignoredColumns)
+                closeHeldImport()
+              }}
+            >
+              Import anyway
+            </button>
+            <button type="button" ref={cancelImportBtn} onClick={closeHeldImport}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <ImportResult msg={investorMsg} />
+        )}
         <div className="table-wrap">
           <table className="grid" aria-label="Investors">
             <thead>

@@ -331,6 +331,16 @@ const MUTANTS = [
     "person's cap during the demo still treated as the tour's (Codex M3 R3 #9)",
   ],
   ['src/App.tsx', 'if (saved?.demoFrom != null) remember(saved.step)', '', 'saved demo ownership survives a person editing the cap (Codex M3 R3 #9)'],
+  // R-X-01.3 / R-REC-01.3: two confirmations before data is lost
+  ['src/App.tsx', 'if (pending || !sampleLosesNothing(state)) setConfirmSample(true)', 'if (false) setConfirmSample(true)', 'sample replaces the deal without asking'],
+  ['src/App.tsx', 'onClick={tour ? startTour : onLoadSample}', 'onClick={onLoadSample}', 'reloading the sample during the tour no longer restarts it'],
+  ['src/tour/script.ts', 'truncated === null && entries.length <= 1', 'entries.length <= 1', 'removed log entries do not count as something to lose'],
+  ['src/tour/script.ts', "entries.every((e) => e.event === 'sample_loaded') && nothingToLose(s)", 'nothingToLose(s)', 'a log entry other than the sample load does not count'],
+  ['src/state.ts', '|| s.decisions[lineId].lineFp === VOID) continue', ') continue', 'a decision already void is counted as lost'],
+  ['src/state.ts', '|| s.feePayerChanges[i].lines[j].voided) return', ') return', 'an adjustment already void is counted as lost'],
+  ['src/state.ts', 'return !kept.has(id) && row !== undefined && blankRefs.has(normRef(row.reference))', 'return !kept.has(id)', 'blank IDs blamed when a blank row is someone else'],
+  ['src/components/Reconciliation.tsx', 'if (importLossCount(loss) === 0) return applyInvestors(rows, r.ignoredColumns)', 'if (true) return applyInvestors(rows, r.ignoredColumns)', 'import voids data without asking'],
+  ['src/components/Reconciliation.tsx', 'heldImport?.basis === state ? heldImport : null', 'heldImport', 'a held import applies counts from data that has since changed'],
   ['src/App.tsx', 'if (nothingToLose(state)) beginAt(0)', 'if (true) beginAt(0)', 'first-visit tour button replaces typed data (Codex M3 R3 #10)'],
   // ---- G3 fixes (M-11) ----
   [

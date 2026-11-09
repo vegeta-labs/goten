@@ -38,6 +38,7 @@ import {
   firstStepOf,
   nothingToLose,
   prerequisitesMet,
+  sampleLosesNothing,
   stateAt,
   tourIntact,
   tryNext,
@@ -173,6 +174,17 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
   const [tourClosed, setTourClosed] = useState(false)
   const [saved, setSaved] = useState<TourProgress | null>(() => loadTourProgress(storage, STEPS.length))
   const savedStep = saved?.step ?? null
+  // R-X-01.3: declared before the Clear effect below, so a clear that closes both leaves focus on Clear all data
+  const [confirmSample, setConfirmSample] = useState(false)
+  const sampleBtn = useRef<HTMLButtonElement>(null)
+  const cancelSampleBtn = useRef<HTMLButtonElement>(null)
+  const sampleWasOpen = useRef(false)
+  useEffect(() => {
+    if (confirmSample) cancelSampleBtn.current?.focus()
+    // a tour that starts while this is open takes the focus itself
+    else if (sampleWasOpen.current && !tour) sampleBtn.current?.focus()
+    sampleWasOpen.current = confirmSample
+  }, [confirmSample, tour])
   const [confirmClear, setConfirmClear] = useState(false)
   // keyboard users land on Cancel when the confirmation opens and back on its button when it closes (UI polish self-test #2)
   const clearBtn = useRef<HTMLButtonElement>(null)
@@ -216,6 +228,7 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
     remember(n)
   }
   const beginAt = (n: number) => {
+    setConfirmSample(false)
     restore(stateAt(n, state))
     setTourNote(null)
     setTour({ step: n, demoFrom: null, forYou: false })
@@ -230,6 +243,7 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
     const demoFrom = saved.demoFrom !== null && state.allocation.cap === DEMO_CAP_TEXT ? saved.demoFrom : null
     // anything changed since leaving the tour means a restart from this step, with a warning (Codex M3 R1 #3)
     if (!prerequisitesMet(saved.step, state) || !tourIntact(saved.step, state, demoFrom)) return setTourNote({ kind: 'stale', step: saved.step })
+    setConfirmSample(false)
     setTour({ step: saved.step, demoFrom, forYou: false })
     setTab(STEPS[saved.step].tab)
     setTourClosed(false)
@@ -314,12 +328,23 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
     } else setEndTop(underBottom)
   }, [focusTick])
 
+  const replaceWithSample = () => {
+    dispatch({ type: 'loadSample' })
+    setConfirmSample(false)
+  }
+  /** R-X-01.3: a typed value not yet calculated counts too (a tap on a phone need not leave the field first). */
+  const onLoadSample = () => {
+    if (pending || !sampleLosesNothing(state)) setConfirmSample(true)
+    else replaceWithSample()
+  }
+
   const clearAll = () => {
     clearSaved(storage)
     skipSave.current = true
     dispatch({ type: 'clearAll' })
     setGeneration((g) => g + 1)
     setConfirmClear(false)
+    setConfirmSample(false)
     setTour(null)
     setTourNote(null)
     setTourClosed(false)
@@ -395,7 +420,7 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
           </p>
           <div className="top-actions">
             {/* during the tour, reloading the sample is a restart of the tour (§4) */}
-            <button type="button" onClick={tour ? startTour : () => dispatch({ type: 'loadSample' })}>
+            <button type="button" ref={sampleBtn} onClick={tour ? startTour : onLoadSample} disabled={confirmSample}>
               Load sample deal
             </button>
             <div className="theme-switch" role="group" aria-label="Theme">
@@ -405,6 +430,17 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
                 </button>
               ))}
             </div>
+            {confirmSample && (
+              <div className="notice bad confirm-clear confirm-row" role="alertdialog" aria-labelledby="sample-q">
+                <span id="sample-q">Replace the current deal with the sample? This cannot be undone.</span>
+                <button type="button" className="danger" onClick={replaceWithSample}>
+                  Replace with sample
+                </button>
+                <button type="button" ref={cancelSampleBtn} onClick={() => setConfirmSample(false)}>
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
           {tourClosed && savedStep !== null && <p className="privacy">Tour paused. Pick it up any time with Resume tour.</p>}
           <p className="privacy">{PRIVACY_TEXT}</p>

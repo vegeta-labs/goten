@@ -6,6 +6,7 @@ The scripts that check test coverage read the Chinese file; this English file is
 
 Version v0.8 (last revised 2026-10-25; based on PRD v0.8, passed 3 rounds of Codex review, approved by the owner 2026-10-25) · 2026-10-17 · Status: **Approved (2026-10-17)** · Based on: PRD v0.7
 
+- v0.8 → v0.8.1 (2026-11-09): adds TC-REC-55 to 57, TC-X-21 to 23, E2E-10 (PRD v0.8.8: R-REC-01.3, R-X-01.3), milestone 〔M6〕.
 - v0.1 → v0.2: changed per Codex review #16 #17 #21 #24: each acceptance point maps to a test; independent recalculation extended to adversarial cases; new cases for boundaries, invalid input, formats and end-to-end; sample deal rewritten under the v0.2 default conventions, with numbers that can be frozen. All hand-calculated numbers were rechecked with Python `decimal`.
 - v0.2 → v0.3: added cases per round 2 R2-01/04/05/08/09/10/11/12/13; each case tagged with its due milestone; reset steps added to the manual checklist; default conditions for exit distribution written out in full.
 - v0.7 → v0.7.1 (2026-10-20, clarification): §6 exported negative amounts keep their minus sign.
@@ -265,6 +266,12 @@ Due milestones: 〔M5〕 = the first v0.8 PR (chasing payments: R-REC-10, R-X-08
 | TC-ALL-48 〔M6〕 | C-ALL-11 voiding is permanent | Continue from TC-ALL-36 after applying: submit Amelia's amount due as £10,500, then submit £10,000 again; another time submit £10,000 directly (same as the original) | First: voided on submitting £10,500, still voided after changing back to £10,000, effective amount due is the roster value £10,000.00, marked "Not covered…"; second: not a change, effective amount due still £9,700.00 |
 | TC-ALL-49 〔M6〕 | C-ALL-10 step 3, R-ALL-08 | Minimum 0, no cap, one investor due £1,000, 3% investors pay, the company pays a whole fixed fee of £960; change the 3% to company pays | N = I = T = £970.00, but company-paid fees £960.00 + £29.10 = £989.10 > total invested £970.00 (paid to the company −£19.10): blocked, cannot apply |
 | TC-IO-47 〔M6〕 | §5.5 v0.8 exports, R-ALL-10 | After review: first mark Lucas withdrawn, then change the minimum to £970 and the platform fee to company pays and apply (the change covers 11 people); export the reconciliation ledger and the chase list; after carrying, copy the confirmation | In the ledger t13's `withdrawn_on` is `2026-10-16`, blank on other rows; in the chase list CSV David's row has `committed` `2425.00`, `committed_original` `2500.00`, `committed_adjustment` `-75.00`, and the columns are blank where there is no adjustment; both files still end with `currency`; the confirmation has a new section "Withdrawn before closing (refund in full):" with "- Lucas Meyer: £3,000.00" |
+| TC-REC-55 〔M6〕 | R-REC-01.3 | After review, a withdrawal and a fee payer change, re-import the same list with blank IDs; also: re-import keeping IDs, change one reference only, entries already void, an ID of `__proto__`, a blank ID that is only a new investor | The counts equal exactly what the real import voids and the simulation leaves the data unchanged; keeping IDs gives none; entries already void are not counted again; blank IDs are named only when a blank-ID row is the lost investor |
+| TC-REC-56 〔M6〕 | R-REC-01.3 | On the page re-import with blank IDs and read the warning; click Cancel; then Import anyway | The warning states the counts and the blank IDs, focus on Cancel; cancel changes nothing and focus returns to the import button; proceeding gives the same result as the direct import, with the usual import message |
+| TC-REC-57 〔M6〕 | R-REC-01.3 | Import a list with nothing to void; change the data, import again, or edit the pasted text while the warning is open | No warning, it imports at once; the warning closes and the earlier import is not applied |
+| TC-X-21 〔M6〕 | R-X-01.3 | Click Load sample deal on a fresh page; click it again (pure sample) | No question, it loads at once |
+| TC-X-22 〔M6〕 | R-X-01.3 | Click Load sample deal with investors, bank lines, decisions or inputs on the page; click Cancel; then Replace with sample | The exact question, focus on Cancel; cancel changes nothing; confirming gives the same result as the direct load, focus returns to the button |
+| TC-X-23 〔M6〕 | R-X-01.3 | Only the log differs (a decision made and undone on the sample); entries were truncated; click the button during the tour; start the tour while the question is open | The first two ask; during the tour it still restarts the tour and this question does not appear; starting the tour closes the question |
 
 Independent recalculation (oracle) adds in 〔M6〕: C-ALL-10's T, N and differences (randomly generated inputs across both conventions, several fees, with cap and minimum, compared with the TS person by person), and the pending refunds total after withdrawals. Implemented by an independent agent from the PRD wording.
 
@@ -327,6 +334,7 @@ Every other row (units, each person's exit proceeds) is generated in M1 by both 
 - E2E-07 〔M3〕 Complete the manual checklist steps M-01 to M-07 at 375px width (P1).
 - E2E-08 〔M5〕 After review of the sample, copy one chase message; undo the t03 confirmation, then copy Chloe's query message and open the activity log to see the matching entries; throughout, only GETs for static assets (copying makes no request).
 - E2E-09 〔M6〕 Starting from the sample after review: mark Lucas Meyer withdrawn → carry into allocation and he is not there; change the minimum to £970, change the platform fee to company pays and apply → reconciliation shows the adjustments and overpayments; reverse and everything is restored.
+- E2E-10 〔M6〕 After review and a withdrawal for Lucas, paste the list again with blank IDs: the warning with counts appears, and cancel leaves the list unchanged; then Load sample deal: the question appears, cancel keeps the review, confirming returns to the unreviewed sample; no browser dialog and no CSP error throughout.
 
 ## 5. Manual acceptance checklist
 PRs check only the items relevant to that PR; before release, check all of them. Before each item, click "Reset sample" to restore the sample deal to its initial state, unless the item says it continues from the previous one.
@@ -366,6 +374,7 @@ Note: this lists "which cases verify this requirement". An ID being present does
 | R-DEAL-04 | TC-DEAL-01, TC-ALL-06, 07, 08, 10 |
 | R-REC-01.1 | TC-IO-08, 09, 10, 13, 16, 20 |
 | R-REC-01.2 | TC-REC-20, TC-IO-14 |
+| R-REC-01.3 | TC-REC-55, 56, 57, E2E-10 |
 | R-REC-02.1 | TC-IO-07, 08, 18, 19 |
 | R-REC-02.2 | TC-REC-15, 16, 24, TC-IO-15 |
 | R-REC-02.3 | TC-REC-17, TC-IO-18 |
@@ -413,3 +422,4 @@ Note: this lists "which cases verify this requirement". An ID being present does
 | R-X-07 | E2E-02a, E2E-02b |
 | R-X-08 | TC-X-05, 06, 07, 08, 09, 10, 13, 16, 17, 18, 19, E2E-08, M-12 |
 | R-X-01.2 | TC-X-11, TC-X-12, TC-X-20, E2E-05 |
+| R-X-01.3 | TC-X-21, 22, 23, E2E-10 |

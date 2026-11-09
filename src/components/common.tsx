@@ -227,7 +227,19 @@ export function Checks({
 }
 
 /** Paste CSV text or choose a file; either way the text goes through the same atomic importer. */
-export function ImportBox({ title, help, onImport, extra }: { title: string; help: ReactNode; onImport: (text: string) => void; extra?: ReactNode }) {
+export function ImportBox({
+  title,
+  help,
+  onImport,
+  onTextEdit,
+  extra,
+}: {
+  title: string
+  help: ReactNode
+  onImport: (text: string) => void
+  onTextEdit?: () => void
+  extra?: ReactNode
+}) {
   const [text, setText] = useState('')
   const id = useId()
   // a file read that finishes after this box is gone (e.g. "Clear all data") must not bring data back (Codex M2 #3)
@@ -251,7 +263,16 @@ export function ImportBox({ title, help, onImport, extra }: { title: string; hel
         <p className="hint">{help}</p>
         {extra}
         <label htmlFor={id}>Paste CSV text (first line is the header)</label>
-        <textarea id={id} rows={5} value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} />
+        <textarea
+          id={id}
+          rows={5}
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value)
+            onTextEdit?.()
+          }}
+          spellCheck={false}
+        />
         <div className="row-actions">
           <button type="button" onClick={() => onImport(text)} disabled={!text.trim()}>
             Import pasted text

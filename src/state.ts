@@ -606,6 +606,63 @@ export function makeReducer(clock: Clock) {
 
 export const reducer = makeReducer(systemClock)
 
+/** What applying an investor list would void (R-REC-01.3). */
+export interface ImportLoss {
+  decisions: number
+  withdrawals: number
+  adjustments: number
+  /** a lost investor came back on a row whose ID was blank, so they got a new ID */
+  blankIds: boolean
+}
+
+// the entries the simulated run writes are thrown away, so its clock does not matter
+const simulate = makeReducer(() => ({ epochMs: 0, offsetMinutes: 0 }))
+
+/**
+ * R-REC-01.3: runs the import through the real reducer on a copy and reads what it voided, so the warning cannot disagree with
+ * what the import does. Pure: `s` is not changed, and `rows` must be the rows that will really be applied (IDs already filled).
+ */
+export function investorImportLoss(s: AppState, rows: CommitmentRow[], generatedIds: ReadonlySet<string> = new Set()): ImportLoss {
+  const after = simulate(s, { type: 'replaceCommitments', rows })
+  const lostIds: string[] = []
+  let decisions = 0
+  for (const [lineId, d] of Object.entries(after.decisions)) {
+    if (d.lineFp !== VOID || !Object.hasOwn(s.decisions, lineId) || s.decisions[lineId].lineFp === VOID) continue
+    decisions++
+    if (d.kind === 'assign') lostIds.push(d.commitmentId)
+  }
+  const goneMarks = Object.keys(s.withdrawals).filter((id) => !Object.hasOwn(after.withdrawals, id))
+  lostIds.push(...goneMarks)
+  let adjustments = 0
+  after.feePayerChanges.forEach((c, i) =>
+    c.lines.forEach((l, j) => {
+      if (!l.voided || s.feePayerChanges[i].lines[j].voided) return
+      adjustments++
+      lostIds.push(l.investorId)
+    }),
+  )
+  const kept = new Set(rows.map((r) => r.id))
+  const blankRefs = new Set(rows.filter((r) => generatedIds.has(r.id)).map((r) => normRef(r.reference)))
+  const cameBackBlank = (id: string) => {
+    const row = s.commitments.find((r) => r.id === id)
+    return !kept.has(id) && row !== undefined && blankRefs.has(normRef(row.reference))
+  }
+  return { decisions, withdrawals: goneMarks.length, adjustments, blankIds: lostIds.some(cameBackBlank) }
+}
+
+export const importLossCount = (l: ImportLoss) => l.decisions + l.withdrawals + l.adjustments
+
+/** R-REC-01.3: the warning, naming only what would be lost. */
+export function importLossText(l: ImportLoss): string {
+  const parts = [
+    l.decisions > 0 && plural(l.decisions, 'decision'),
+    l.withdrawals > 0 && plural(l.withdrawals, 'withdrawal mark'),
+    l.adjustments > 0 && plural(l.adjustments, 'fee payer adjustment'),
+  ].filter((p) => p !== false)
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0]
+  return `This import will void ${list}${l.blankIds ? ' (rows with a blank investor_id get new IDs)' : ''}. This cannot be undone.`
+}
+
 // ---------- C-X-1: what each action writes to the activity log ----------
 
 const tourNote = (a: { tour?: boolean }) => (a.tour ? ' · guided tour' : '')

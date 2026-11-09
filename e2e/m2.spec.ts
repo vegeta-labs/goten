@@ -97,6 +97,7 @@ test('E2E-03 privacy: only static GETs, no request bodies, no deal data in any U
   await page.getByRole('button', { name: 'Import pasted text' }).first().click()
   await expect(page.getByText('Imported 1 investors.')).toBeVisible()
   await page.getByRole('button', { name: 'Load sample deal' }).click()
+  await page.getByRole('button', { name: 'Replace with sample' }).click()
   await reviewSample(page)
   const files: Record<string, string> = {}
   const save = async (name: string) => {

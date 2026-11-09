@@ -1,6 +1,19 @@
 // Guided tour script (R-X-01, docs/en/05_GUIDED_TOUR.md v0.2): replay, card figures, recovery.
 import { describe, expect, it } from 'vitest'
-import { MISSING, context, tourIntact, nothingToLose, prerequisitesMet, stateAt, STEPS, firstStepOf, DEMO_CAP_TEXT, SAMPLE_CAP_TEXT, tryNext } from './script'
+import {
+  MISSING,
+  context,
+  tourIntact,
+  nothingToLose,
+  sampleLosesNothing,
+  prerequisitesMet,
+  stateAt,
+  STEPS,
+  firstStepOf,
+  DEMO_CAP_TEXT,
+  SAMPLE_CAP_TEXT,
+  tryNext,
+} from './script'
 import { initialState, reducer } from '../state'
 import { carryIsFullShare, distribute } from '../lib/waterfall'
 
@@ -240,5 +253,32 @@ describe('guided tour v0.3 (PRD v0.8 R-X-01.2)', () => {
     // a fresh page with only initials typed has nothing to lose: starting the tour does not ask first
     const today = initialState()
     expect(nothingToLose({ ...today, deal: { ...today.deal, initials: 'HY' } })).toBe(true)
+  })
+})
+
+describe('Load sample deal: is there anything to lose? (R-X-01.3)', () => {
+  const sample = () => reducer(initialState(), { type: 'loadSample' })
+
+  it('TC-X-21 a fresh page and the untouched sample lose nothing', () => {
+    expect(sampleLosesNothing(initialState())).toBe(true)
+    expect(sampleLosesNothing(sample())).toBe(true)
+  })
+
+  it('TC-X-23 a log entry other than the sample load is something to lose, even when the deal data is untouched', () => {
+    const s = sample()
+    const other = { ...s.log.entries[0], event: 'import' as const }
+    expect(sampleLosesNothing({ ...s, log: { ...s.log, entries: [other] } })).toBe(false)
+    expect(sampleLosesNothing({ ...s, log: { ...s.log, entries: [s.log.entries[0], s.log.entries[0]] } })).toBe(false)
+  })
+
+  it('TC-X-23 a record of removed log entries is something to lose', () => {
+    const s = sample()
+    expect(sampleLosesNothing({ ...s, log: { ...s.log, truncated: { count: 1, unexported: 1 } as typeof s.log.truncated } })).toBe(false)
+  })
+
+  it('TC-X-22 changed deal data is something to lose', () => {
+    const s = sample()
+    expect(sampleLosesNothing(reducer(s, { type: 'setAllocation', patch: { cap: '1' } }))).toBe(false)
+    expect(sampleLosesNothing({ ...initialState(), commitments: s.commitments })).toBe(false)
   })
 })

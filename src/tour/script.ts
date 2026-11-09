@@ -400,6 +400,15 @@ export function nothingToLose(s: AppState): boolean {
   return tourData(s) === tourData(initialState()) || tourData(s) === tourData(sampleState(s))
 }
 
+/**
+ * R-X-01.3: loading the sample goes ahead without asking only when it would lose nothing: the deal data is a fresh page or
+ * the untouched sample, and the activity log holds no more than the entry that loading the sample writes.
+ */
+export function sampleLosesNothing(s: AppState): boolean {
+  const { entries, truncated } = s.log
+  return truncated === null && entries.length <= 1 && entries.every((e) => e.event === 'sample_loaded') && nothingToLose(s)
+}
+
 // ---------- end card "Try next" (guide v0.3 §3.2) ----------
 
 export interface TryNext {
