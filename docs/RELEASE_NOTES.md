@@ -2,6 +2,16 @@
 
 Rule P9: only what is implemented, tested and deployed is listed. Each line names the requirement and the tests that cover it.
 
+## v1.3.0 — 2026-11-10
+
+Pages marked **out of date** no longer pass on old figures. On the allocation page, **Copy closing confirmation**, **Export allocation CSV** and **Hand off to exit distribution** are disabled until you hand off again, and the page says why; on the exit page, **Export holdings CSV** and **Export distribution CSV** are disabled while the holdings or the allocation behind them are out of date (R-X-07; TC-ALL-50, TC-DIS-32).
+
+After a fee payer change, the allocation page shows no result, refund list or confirmation until you hand off again, because those figures would mix the new fee table with the old investor amounts (R-ALL-12.3, C-ALL-11; TC-ALL-51).
+
+Bank lines marked **Not part of this deal** no longer get the "unmatched for N days" reminder; undoing the mark brings it back, and the money still counts as not booked (R-REC-06, C-REC-5; TC-REC-58). The "Copied to the clipboard." message goes once the confirmation can no longer be copied or has changed (R-ALL-10; TC-ALL-52), and the settings-changed reminder no longer points to a preview that is not there.
+
+Calculations, rounding, import and export formats, and saved data are unchanged.
+
 ## v1.2.5 — 2026-11-09
 
 Two actions that can lose work now ask first. **Load sample deal** asks before replacing a deal that has anything to lose (R-X-01.3; TC-X-21, TC-X-22, TC-X-23). Importing an investor list says how many confirmed decisions, withdrawal marks and fee payer adjustments it would void, and offers **Import anyway** or **Cancel** (R-REC-01.3; TC-REC-56, TC-REC-57). Calculations, import and export formats, and saved data are unchanged.
