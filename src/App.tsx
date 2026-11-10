@@ -63,6 +63,21 @@ const THEMES: [Theme, string][] = [
   ['dark', 'Dark'],
 ]
 
+// the phone layout of index.css (the tour drawer, the stacked header); without matchMedia (tests) the desktop layout
+const PHONE = '(max-width: 600px)'
+function usePhone(): boolean {
+  const [phone, setPhone] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia(PHONE).matches)
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
+    const q = window.matchMedia(PHONE)
+    const update = () => setPhone(q.matches)
+    update()
+    q.addEventListener('change', update)
+    return () => q.removeEventListener('change', update)
+  }, [])
+  return phone
+}
+
 // Browsers that block site data throw when localStorage is read (Firefox can also return null; saveState treats
 // a missing store as blocked): the app still works, it just does not remember, and says so (PRD R-X-02, v0.7.6).
 function browserStorage(): Storage | undefined {
@@ -178,6 +193,8 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
   const savedStep = saved?.step ?? null
   // R-X-01.3: declared before the Clear effect below, so a clear that closes both leaves focus on Clear all data
   const [confirmSample, setConfirmSample] = useState(false)
+  // the phone layout (≤600px): where Load sample deal and the theme choice sit
+  const phone = usePhone()
   const sampleBtn = useRef<HTMLButtonElement>(null)
   const cancelSampleBtn = useRef<HTMLButtonElement>(null)
   const sampleWasOpen = useRef(false)
@@ -186,7 +203,8 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
     // a tour that starts while this is open takes the focus itself
     else if (sampleWasOpen.current && !tour) sampleBtn.current?.focus()
     sampleWasOpen.current = confirmSample
-  }, [confirmSample, tour])
+    // `phone` too: crossing 600px (turning a phone) moves these buttons to the other row, so the focus is put back
+  }, [confirmSample, tour, phone])
   const [confirmClear, setConfirmClear] = useState(false)
   // keyboard users land on Cancel when the confirmation opens and back on its button when it closes (UI polish self-test #2)
   const clearBtn = useRef<HTMLButtonElement>(null)
@@ -204,6 +222,16 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
     setTheme(t)
     saveTheme(storage, t)
   }
+  // R-X-04: set once and rarely changed, so on a phone it sits at the foot of the page instead of above the work
+  const themeSwitch = (
+    <div className="theme-switch" role="group" aria-label="Theme">
+      {THEMES.map(([t, name]) => (
+        <button key={t} type="button" aria-pressed={theme === t} onClick={() => chooseTheme(t)}>
+          {name}
+        </button>
+      ))}
+    </div>
+  )
   const tourCtx = useMemo(() => (tour ? context(state, tour.demoFrom) : null), [tour, state])
   useEffect(() => {
     document.documentElement.classList.toggle('touring', tour !== null || tourNote !== null)
@@ -354,6 +382,26 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
     chooseTheme('system')
   }
 
+  // on a phone, Load sample deal joins the tour and clear buttons, so the header above the work is one block shorter
+  const sampleControls = (
+    <>
+      {/* during the tour, reloading the sample is a restart of the tour (§4) */}
+      <button type="button" ref={sampleBtn} onClick={tour ? startTour : onLoadSample} disabled={confirmSample}>
+        Load sample deal
+      </button>
+      {confirmSample && (
+        <div className="notice bad confirm-clear confirm-row" role="alertdialog" aria-labelledby="sample-q">
+          <span id="sample-q">Replace the current deal with the sample? This cannot be undone.</span>
+          <button type="button" className="danger" onClick={replaceWithSample}>
+            Replace with sample
+          </button>
+          <button type="button" ref={cancelSampleBtn} onClick={() => setConfirmSample(false)}>
+            Cancel
+          </button>
+        </div>
+      )}
+    </>
+  )
   return (
     <div className="app">
       {/* sidebar from 1024px (the M4 visual plan (not published)); stacked above the page on narrower screens */}
@@ -398,6 +446,7 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
               Restart
             </button>
           )}
+          {phone && sampleControls}
           <button type="button" className="danger" ref={clearBtn} onClick={() => setConfirmClear(true)} disabled={confirmClear}>
             Clear all data
           </button>
@@ -421,28 +470,8 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
             Goten / <span className="crumb-here">{TAB_LABEL[tab]}</span>
           </p>
           <div className="top-actions">
-            {/* during the tour, reloading the sample is a restart of the tour (§4) */}
-            <button type="button" ref={sampleBtn} onClick={tour ? startTour : onLoadSample} disabled={confirmSample}>
-              Load sample deal
-            </button>
-            <div className="theme-switch" role="group" aria-label="Theme">
-              {THEMES.map(([t, name]) => (
-                <button key={t} type="button" aria-pressed={theme === t} onClick={() => chooseTheme(t)}>
-                  {name}
-                </button>
-              ))}
-            </div>
-            {confirmSample && (
-              <div className="notice bad confirm-clear confirm-row" role="alertdialog" aria-labelledby="sample-q">
-                <span id="sample-q">Replace the current deal with the sample? This cannot be undone.</span>
-                <button type="button" className="danger" onClick={replaceWithSample}>
-                  Replace with sample
-                </button>
-                <button type="button" ref={cancelSampleBtn} onClick={() => setConfirmSample(false)}>
-                  Cancel
-                </button>
-              </div>
-            )}
+            {!phone && sampleControls}
+            {!phone && themeSwitch}
           </div>
           {tourClosed && savedStep !== null && <p className="privacy">Tour paused. Pick it up any time with Resume tour.</p>}
           <p className="privacy">{PRIVACY_TEXT}</p>
@@ -547,7 +576,7 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
           </main>
         </PendingContext>
 
-        <Footer />
+        <Footer themeSwitch={phone ? themeSwitch : null} />
       </div>
 
       {tour && tourCtx && !tourNote && (

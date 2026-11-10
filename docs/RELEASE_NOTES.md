@@ -2,6 +2,10 @@
 
 Rule P9: only what is implemented, tested and deployed is listed. Each line names the requirement and the tests that cover it.
 
+## v1.3.1 — 2026-11-10
+
+Phone-width fixes from a real-phone check. The guided tour's end card now shows **Keep exploring the sample**, **Clear and start my own deal** and **Replay tour** under its title without scrolling, folds to one line (**Tour finished · Show**), closes with Esc, and leaves room for a browser toolbar at the bottom of the screen (05_GUIDED_TOUR §4; E2E-05). At 600px and narrower, the System / Light / Dark choice moves to the foot of the page with 44px buttons, the breadcrumb is hidden, and **Load sample deal** sits with the tour and clear buttons; wider screens are unchanged (R-X-04; E2E-07). On the exit page, each waterfall step's reason sits under its name on a phone instead of in a cut-off **Why** column (E2E-07). Calculations, import and export formats, and saved data are unchanged.
+
 ## v1.3.0 — 2026-11-10
 
 Pages marked **out of date** no longer pass on old figures. On the allocation page, **Copy closing confirmation**, **Export allocation CSV** and **Hand off to exit distribution** are disabled until you hand off again, and the page says why; on the exit page, **Export holdings CSV** and **Export distribution CSV** are disabled while the holdings or the allocation behind them are out of date (R-X-07; TC-ALL-50, TC-DIS-32).

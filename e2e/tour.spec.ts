@@ -138,6 +138,80 @@ test.describe('375px', () => {
     expect((await folded.boundingBox())!.height).toBeGreaterThanOrEqual(43.5)
   })
 
+  test('E2E-05 at 375px the end card shows its actions without scrolling and folds to one line (05_GUIDED_TOUR.md §4)', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: 'I understand — take the 3-minute tour' }).click()
+    for (let i = 1; i <= 12; i++) {
+      const doIt = card(page).getByRole('button', { name: 'Do this for me' })
+      if (await doIt.isVisible()) await doIt.click()
+      await card(page)
+        .getByRole('button', { name: i === 12 ? 'Finish' : 'Next' })
+        .click()
+    }
+    const end = page.getByTestId('tour-end')
+    const keep = end.getByRole('button', { name: 'Keep exploring the sample' })
+    const [k, e] = [(await keep.boundingBox())!, (await end.boundingBox())!]
+    // inside the drawer's visible part without scrolling it, and inside the screen
+    expect(k.y + k.height).toBeLessThanOrEqual(e.y + (await end.evaluate((el) => el.clientHeight)))
+    expect(k.y + k.height).toBeLessThanOrEqual(760)
+    expect(k.height).toBeGreaterThanOrEqual(43.5)
+    await end.getByRole('button', { name: 'Hide' }).click()
+    const shown = end.getByRole('button', { name: 'Tour finished · Show' })
+    expect((await shown.boundingBox())!.height).toBeGreaterThanOrEqual(43.5)
+    expect((await end.boundingBox())!.height).toBeLessThan(100)
+    await expect(keep).toBeHidden()
+    await shown.click()
+    await expect(end.getByRole('button', { name: 'Hide' })).toBeFocused() // the fold button keeps the focus
+    await expect(keep).toBeVisible()
+    await page.keyboard.press('Escape') // Esc leaves the end card as on the step cards (§4)
+    await expect(end).toBeHidden()
+  })
+
+  test('E2E-07 at 375px the theme choice is at the foot of the page, 44px tall, and the header has no breadcrumb (R-X-04)', async ({ page }) => {
+    await start(page)
+    await expect(page.locator('header.top').getByRole('group', { name: 'Theme' })).toHaveCount(0)
+    await expect(page.locator('.crumb')).toBeHidden()
+    await expect(page.locator('.side-actions').getByRole('button', { name: 'Load sample deal' })).toBeVisible()
+    const theme = page.locator('footer').getByRole('group', { name: 'Theme' })
+    for (const name of ['System', 'Light', 'Dark']) expect((await theme.getByRole('button', { name }).boundingBox())!.height).toBeGreaterThanOrEqual(43.5)
+    await theme.getByRole('button', { name: 'Dark' }).click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    await page.setViewportSize({ width: 1280, height: 800 }) // wider than a phone: back in the header, once
+    await expect(page.locator('header.top').getByRole('group', { name: 'Theme' })).toBeVisible()
+    await expect(page.getByRole('group', { name: 'Theme' })).toHaveCount(1)
+    await expect(page.getByRole('button', { name: 'Dark' })).toHaveAttribute('aria-pressed', 'true')
+    await page.setViewportSize({ width: 768, height: 800 }) // a tablet, between the phone and sidebar layouts
+    await expect(page.locator('header.top').getByRole('group', { name: 'Theme' })).toBeVisible()
+    await expect(page.locator('.crumb')).toBeVisible()
+  })
+
+  test('E2E-07 at 375px the Load sample deal confirmation takes the focus and gives it back, and keeps it when the phone turns (R-X-01.3)', async ({
+    page,
+  }) => {
+    await start(page)
+    await reviewSample(page) // something to lose, so Load sample deal asks first
+    const load = page.locator('.side-actions').getByRole('button', { name: 'Load sample deal' })
+    await load.click()
+    const ask = page.getByRole('alertdialog')
+    await expect(ask.getByRole('button', { name: 'Cancel' })).toBeFocused()
+    await page.setViewportSize({ width: 844, height: 390 }) // turned: the confirmation moves to the header
+    await expect(page.locator('header.top').getByRole('alertdialog').getByRole('button', { name: 'Cancel' })).toBeFocused()
+    await page.setViewportSize({ width: 375, height: 760 })
+    await ask.getByRole('button', { name: 'Cancel' }).click()
+    await expect(load).toBeFocused()
+  })
+
+  test('E2E-07 at 375px each waterfall step gives its reason under its name, with no sideways scroll in the table', async ({ page }) => {
+    await start(page)
+    await reviewSample(page)
+    await page.getByRole('button', { name: 'Hand off to allocation' }).click()
+    await page.getByRole('button', { name: 'Hand off to exit distribution' }).click()
+    const steps = page.getByRole('table', { name: 'Waterfall steps' })
+    await expect(steps.getByRole('columnheader', { name: 'Why' })).toBeHidden()
+    await expect(steps.locator('tr', { hasText: 'Return of capital' }).locator('.why-inline')).toBeVisible()
+    expect(await steps.evaluate((t) => t.scrollWidth - t.parentElement!.clientWidth)).toBeLessThanOrEqual(0)
+  })
+
   test('E2E-07 at 375px the M-01 to M-07 operations work without horizontal page scroll (P1)', async ({ page }) => {
     const problems = watchConsole(page)
     await start(page)

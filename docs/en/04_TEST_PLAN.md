@@ -6,6 +6,7 @@ The scripts that check test coverage read the Chinese file; this English file is
 
 Version v0.8 (last revised 2026-10-25; based on PRD v0.8, passed 3 rounds of Codex review, approved by the owner 2026-10-25) · 2026-10-17 · Status: **Approved (2026-10-17)** · Based on: PRD v0.7
 
+- v0.8.2 → v0.8.3 (2026-11-10): E2E-05 and E2E-07 gain three 375px checks (from a real-phone report): the tour end card's buttons are in view without scrolling and the card folds; the theme choice is at the foot of the page, 44px tall, and the header has no breadcrumb; on the exit page each step's reason sits under its name and the table needs no sideways scroll.
 - v0.8.1 → v0.8.2 (2026-11-09): adds TC-REC-58, TC-ALL-50 to 52, TC-DIS-32 (PRD v0.8.9), milestone 〔M6〕; the TC-ALL-42 reminder text, the sample's checks after review and M-02 are updated to match.
 - v0.8 → v0.8.1 (2026-11-09): adds TC-REC-55 to 57, TC-X-21 to 23, E2E-10 (PRD v0.8.8: R-REC-01.3, R-X-01.3), milestone 〔M6〕.
 - v0.1 → v0.2: changed per Codex review #16 #17 #21 #24: each acceptance point maps to a test; independent recalculation extended to adversarial cases; new cases for boundaries, invalid input, formats and end-to-end; sample deal rewritten under the v0.2 default conventions, with numbers that can be frozen. All hand-calculated numbers were rechecked with Python `decimal`.
@@ -335,9 +336,9 @@ Every other row (units, each person's exit proceeds) is generated in M1 by both 
 - E2E-02b 〔M3〕 After carrying into exit, change the allocation share price → exit shows "out of date"; after carrying again it is replaced as a whole.
 - E2E-03 Privacy: record all requests throughout (including same-origin): only GETs for static assets, no request bodies, no investor names or amounts in any URL.
 - E2E-04 Local storage: data is still there after refresh; gone after "Clear".
-- E2E-05 〔M3〕 Guided tour: walk from the first step to the last; every step's highlight target exists.
+- E2E-05 〔M3〕 Guided tour: walk from the first step to the last; every step's highlight target exists. At 375px the end card's "Keep exploring the sample" is in view without scrolling the card, and the card folds to one line (v0.8.3).
 - E2E-06 The disclaimer is shown on first open; the footer has the disclaimer and the feedback form link.
-- E2E-07 〔M3〕 Complete the manual checklist steps M-01 to M-07 at 375px width (P1).
+- E2E-07 〔M3〕 Complete the manual checklist steps M-01 to M-07 at 375px width (P1). (v0.8.3) At 375px the theme choice is in the footer with 44px buttons, the header shows no breadcrumb, and "Load sample deal" sits with the tour and clear buttons; on a wide screen the theme choice is back in the header, once; on the exit page each step's reason sits under its name, the "Why" column is hidden and the table needs no sideways scroll.
 - E2E-08 〔M5〕 After review of the sample, copy one chase message; undo the t03 confirmation, then copy Chloe's query message and open the activity log to see the matching entries; throughout, only GETs for static assets (copying makes no request).
 - E2E-09 〔M6〕 Starting from the sample after review: mark Lucas Meyer withdrawn → carry into allocation and he is not there; change the minimum to £970, change the platform fee to company pays and apply → reconciliation shows the adjustments and overpayments; reverse and everything is restored.
 - E2E-10 〔M6〕 After review and a withdrawal for Lucas, paste the list again with blank IDs: the warning with counts appears, and cancel leaves the list unchanged; then Load sample deal: the question appears, cancel keeps the review, confirming returns to the unreviewed sample; no browser dialog and no CSP error throughout.

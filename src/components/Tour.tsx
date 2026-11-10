@@ -222,9 +222,21 @@ export function TourNote({
 }) {
   const primary = useRef<HTMLButtonElement>(null)
   const titleId = useId()
+  // the end card can fold to one line on a phone, like the step card, so the page behind it can be used
+  const [collapsed, setCollapsed] = useState(false)
   useEffect(() => primary.current?.focus({ preventScroll: true }), [kind])
+  // Esc leaves the end card as on the step cards (§4): the same as "Keep exploring the sample"
+  useEffect(() => {
+    if (kind !== 'end') return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [kind, onCancel])
+  const cls = `tour-card${top ? ' pos-top' : ''}${kind === 'end' ? ' tour-end' : ''}${kind === 'end' && collapsed ? ' collapsed' : ''}`
   return (
-    <aside className={top ? 'tour-card pos-top' : 'tour-card'} role="dialog" aria-modal="false" aria-labelledby={titleId} data-testid={`tour-${kind}`}>
+    <aside className={cls} role="dialog" aria-modal="false" aria-labelledby={titleId} data-testid={`tour-${kind}`}>
       {kind === 'start' && (
         <>
           <p className="tour-count" id={titleId}>
@@ -278,30 +290,15 @@ export function TourNote({
       )}
       {kind === 'end' && (
         <>
-          <p className="tour-count" id={titleId}>
-            That&apos;s the whole flow
-          </p>
-          <p>
-            Receipts → closing → exit. Each investor&apos;s exit share follows the amount invested, fees excluded. Tiered carry is under the carry type switch.
-          </p>
-          <p>Every decision you just made is in the Activity log.</p>
-          {tryNext.length > 0 && (
-            <>
-              <p className="tour-subhead">Try next</p>
-              <ul className="try-next">
-                {tryNext.map((t) => (
-                  <li key={t.target}>
-                    {t.text}{' '}
-                    <button type="button" className="link" onClick={() => onTakeMeTo?.(t)}>
-                      Take me to it
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          <p>To try your own deal, clear the sample and import your investor list and bank statement.</p>
-          <p className="hint">Your deal data never left this browser.</p>
+          <div className="tour-head">
+            <p className="tour-count" id={titleId}>
+              That&apos;s the whole flow
+            </p>
+            <button type="button" className="link tour-collapse" aria-expanded={!collapsed} onClick={() => setCollapsed(!collapsed)}>
+              {collapsed ? 'Tour finished · Show' : 'Hide'}
+            </button>
+          </div>
+          {/* on a phone the actions come first (index.css), so they are never below the fold of the drawer or under the browser's toolbar */}
           <div className="tour-actions">
             <button type="button" className="primary" ref={primary} onClick={onCancel}>
               Keep exploring the sample
@@ -312,6 +309,30 @@ export function TourNote({
             <button type="button" className="link" onClick={onReplay}>
               Replay tour
             </button>
+          </div>
+          <div className="tour-body">
+            <p>
+              Receipts → closing → exit. Each investor&apos;s exit share follows the amount invested, fees excluded. Tiered carry is under the carry type
+              switch.
+            </p>
+            <p>Every decision you just made is in the Activity log.</p>
+            {tryNext.length > 0 && (
+              <>
+                <p className="tour-subhead">Try next</p>
+                <ul className="try-next">
+                  {tryNext.map((t) => (
+                    <li key={t.target}>
+                      {t.text}{' '}
+                      <button type="button" className="link" onClick={() => onTakeMeTo?.(t)}>
+                        Take me to it
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            <p>To try your own deal, clear the sample and import your investor list and bank statement.</p>
+            <p className="hint">Your deal data never left this browser.</p>
           </div>
         </>
       )}

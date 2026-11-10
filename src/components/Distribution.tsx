@@ -348,31 +348,37 @@ function ExitResult({ r, m, sharePriceMicros }: { r: WaterfallResult; m: (v: num
               <th>Step</th>
               <th className="num">To investors</th>
               <th className="num">To the lead</th>
-              <th>Why</th>
+              <th className="why">Why</th>
             </tr>
           </thead>
           <tbody>
             {r.costsPaid > 0 && (
               <tr>
-                <td>Exit costs</td>
+                <td>
+                  Exit costs<span className="why-inline">{m(r.costsPaid)} is paid first, before anyone else.</span>
+                </td>
                 <td className="num">—</td>
                 <td className="num">—</td>
-                <td>{m(r.costsPaid)} is paid first, before anyone else.</td>
+                <td className="why">{m(r.costsPaid)} is paid first, before anyone else.</td>
               </tr>
             )}
             {r.steps.map((s) => (
               <tr key={s.label}>
-                <td>{s.label}</td>
+                <td>
+                  {s.label}
+                  {/* on a phone the reason goes under the step name instead of a fourth column cut off at the edge */}
+                  <span className="why-inline">{s.explain}</span>
+                </td>
                 <td className="num">{m(s.toInvestors)}</td>
                 <td className="num">{m(s.toLead)}</td>
-                <td>{s.explain}</td>
+                <td className="why">{s.explain}</td>
               </tr>
             ))}
             <tr className="total-row">
               <td>Total</td>
               <td className="num">{m(r.investorsTotal)}</td>
               <td className="num">{m(r.carry)}</td>
-              <td />
+              <td className="why" />
             </tr>
           </tbody>
         </table>

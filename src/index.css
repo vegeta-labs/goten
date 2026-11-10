@@ -22,7 +22,8 @@ body {
 .app {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 0 16px 32px;
+  /* viewport-fit=cover: keep clear of a phone's notch in landscape */
+  padding: 0 max(16px, env(safe-area-inset-right)) 32px max(16px, env(safe-area-inset-left));
 }
 .side {
   display: flex;
@@ -1118,6 +1119,8 @@ tr.tour-target > td:first-child {
     max-height: 40vh;
     overflow-y: auto;
     border-radius: 16px 16px 0 0;
+    /* clear of the home indicator and a browser toolbar that floats over the bottom (viewport-fit=cover) */
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
   }
   .tour-card.collapsed .tour-count,
   .tour-card.collapsed .tour-body,
@@ -1133,7 +1136,45 @@ tr.tour-target > td:first-child {
   }
 }
 @media (min-width: 601px) {
-  .tour-collapse {
+  .tour-collapse,
+  .why-inline {
+    display: none;
+  }
+}
+/* the end card: its actions come first, under the title */
+.tour-end .tour-actions {
+  margin: 4px 0 12px;
+}
+@media (max-width: 600px) {
+  /* room to scroll the last lines clear of a browser toolbar that floats over the bottom of the screen */
+  .tour-card.tour-end:not(.collapsed) {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  .tour-end.collapsed .tour-actions {
+    margin: 0;
+  }
+  table.grid .why {
+    display: none;
+  }
+  .why-inline {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+}
+.foot-theme {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+@media (max-width: 600px) {
+  .theme-switch button {
+    min-height: 44px;
+  }
+  /* the open tab already says where you are */
+  .crumb {
     display: none;
   }
 }
@@ -1174,6 +1215,7 @@ tr.tour-target > td:first-child {
   }
   .side,
   .top-actions,
+  .foot-theme,
   .row-actions,
   .tour-card,
   details.import,
