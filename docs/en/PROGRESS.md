@@ -521,3 +521,7 @@ The application address, package name, saved-data keys, schema, import/export fo
 ## Feedback moves to a form link — v1.2.4
 
 2026-11-07, small-fix channel. The footer's feedback link now opens a form in a new tab, and the page shows no personal address. No change to calculations, formats or saved data.
+
+## Out-of-date pages and fee payer figures — v1.3.0
+
+2026-11-10, high risk, PRD v0.8.9. Pages marked out of date no longer copy, export or hand on, and say why; holdings from an out-of-date allocation count as out of date too. Between a fee payer change and the next hand-off the allocation page and tour cards show no figures, because they would mix the new fee table with the old investor amounts. Lines marked not part of this deal no longer get the unmatched reminder (their money still counts as not booked). Two messages corrected. Money calculation, rounding and import and export formats do not change. Reviewed by a fresh reviewer and Codex, plan and code separately; unit tests 464 passed (210/210 due cases), browser tests 33/33, Python oracle self-check 180/180, mutation on the changed files all killed. Accepted by the owner on a local production build.

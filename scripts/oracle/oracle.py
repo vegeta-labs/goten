@@ -816,7 +816,9 @@ def reconcile(case):
         bank += ln["amount"]
         if st in ("auto", "confirmed"):
             booked_total += ln["amount"]
-        elif (as_of - rec["_date"]).days > threshold:
+        elif st in ("suggested", "unmatched") and (as_of - rec["_date"]).days > threshold:
+            # C-REC-5 (v0.8.9): a line marked "Not part of this deal" has been reviewed, so it is
+            # not aged; its money still counts as unbooked.
             aged.append(ln["id"])
 
     out_c = {}

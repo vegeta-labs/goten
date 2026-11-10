@@ -1056,6 +1056,8 @@ function applyFeePayerChange(s: AppState, a: Extract<Action, { type: 'applyFeePa
 
 /** R-X-07: the allocation was handed off from reconciliation data that has changed since. */
 export const allocationStale = (s: AppState) => s.allocation.handoffVersion !== null && s.allocation.handoffVersion !== s.recVersion
+/** C-ALL-11: the fee table moves at once on a fee payer change, the investors' amounts only at the next hand-off, so figures from the two are wrong. */
+export const figuresHeldBack = (s: AppState) => allocationStale(s) && s.feePayerChanges.length > 0
 /** R-X-07: the holdings were handed off from an allocation that has changed since. */
 export const exitStale = (s: AppState) => s.exit.handoffVersion !== null && s.exit.handoffVersion !== s.allocVersion
 

@@ -8,14 +8,14 @@ Each button saves a CSV file to your computer. Nothing is uploaded. File names e
 | --------------------------- | -------------------- | ------------ | -------------------------------------------------------------------- | ----------------------------------------------------------- |
 | **Export ledger CSV**       | 1. Reconciliation    | ledger       | One row per bank line, its status, who it is booked to, who decided. | There are input errors.                                     |
 | **Export chase list CSV**   | 1. Reconciliation    | chase_list   | Each investor who is short or unpaid, with the chase text.           | There are input errors.                                     |
-| **Export allocation CSV**   | 2. Allocation        | allocation   | One row per investor: invested, shares, each fee, refund, status.    | There are input errors or blockers, or a refund is flagged. |
-| **Export holdings CSV**     | 3. Exit distribution | holdings     | Each holding. It can be imported again unchanged.                    | The holdings table itself has an error.                     |
-| **Export distribution CSV** | 3. Exit distribution | distribution | One row per investor: distribution, profit, multiple.                | There are input errors or a shortfall.                      |
+| **Export allocation CSV**   | 2. Allocation        | allocation   | One row per investor: invested, shares, each fee, refund, status.    | There are input errors or blockers, a refund is flagged, or the page is out of date. |
+| **Export holdings CSV**     | 3. Exit distribution | holdings     | Each holding. It can be imported again unchanged.                    | The holdings table has an error, or the page is out of date. |
+| **Export distribution CSV** | 3. Exit distribution | distribution | One row per investor: distribution, profit, multiple.                | There are input errors or a shortfall, or the page is out of date. |
 | **Export activity log CSV** | Activity log         | activity_log | Every log entry, oldest first.                                       | The log is empty.                                           |
 
 **Copy closing confirmation** copies the summary for the lead, and waits for the same things as the allocation export.
 
-**Out of date** does not hold back any of these. A page marked out of date still copies and exports its old figures, so hand off again first.
+A page marked **out of date** holds back its copy and exports until you hand off again: **Copy closing confirmation** and **Export allocation CSV** on the allocation page, **Export holdings CSV** and **Export distribution CSV** on the exit page.
 
 Every export has a currency column as its last column. In text columns, a cell starting with = + - or @ is saved with a leading apostrophe, so that a spreadsheet does not treat it as a formula. Goten removes the apostrophe if you import the file again.
 

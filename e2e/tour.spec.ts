@@ -146,8 +146,7 @@ test.describe('375px', () => {
     await noPageScroll()
     await reviewSample(page) // M-02
     await expect(page.getByTestId('rec-totals')).toContainText('£108,500.00')
-    await expect(page.locator('.check-list li:not(.pass)')).toHaveCount(1)
-    await expect(page.locator('.check-list li:not(.pass)')).toContainText('WESTBRIDGE SUPPLIES: not matched for 13 days')
+    await expect(page.locator('.check-list li:not(.pass)')).toHaveCount(0)
     await page.getByRole('button', { name: 'Hand off to allocation' }).click() // M-03
     await expect(page.getByTestId('alloc-totals')).toContainText('£98,895.00')
     await expect(page.locator('[data-investor="Amelia Hart"]')).toContainText('4,018 shares / £9,698.24')

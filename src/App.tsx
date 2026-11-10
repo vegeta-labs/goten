@@ -128,9 +128,10 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
   const exitDerived = useMemo(() => deriveDistribution({ deal, exit }), [deal, exit])
   const exitOutcome = useMemo(() => (exitDerived.input ? distribute(exitDerived.input) : null), [exitDerived])
   const handoff = recOutcome?.ok ? handoffToAllocation(recOutcome.result) : null
-  // R-ALL-11: only a finished allocation can become holdings (C-03: a blocker or an edit in progress holds it back)
+  // R-ALL-11: only a finished allocation can become holdings (C-03: a blocker or an edit in progress holds it back;
+  // R-X-07: nor an allocation that is out of date)
   const holdings =
-    allocOutcome?.ok && !blocked(allocOutcome.checks) && allocDerived.input && !pending
+    allocOutcome?.ok && !blocked(allocOutcome.checks) && allocDerived.input && !pending && !allocationStale(state)
       ? holdingsFromAllocation(allocOutcome.result, allocDerived.input.priceMicros, state.allocVersion)
       : null
   const onHandoffToExit = () => {
@@ -154,7 +155,8 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
     else if (o.right > n.right) nav.scrollLeft += o.right - n.right + 8
   }, [tab])
   const stale = allocationStale(state)
-  const holdingsStale = exitStale(state)
+  // R-X-07: holdings carried from an allocation that is itself out of date are old too
+  const holdingsStale = exitStale(state) || (state.exit.handoffVersion !== null && stale)
 
   const onHandoff = () => {
     if (!handoff?.ok) return
@@ -258,7 +260,7 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
     } else goTo(tour.step + 1)
   }
   const tourDo = (fn: ((s: AppState) => AppState) | undefined) => {
-    if (!tour || !fn) return
+    if (!tour || !fn || pending) return // C-03: an edit in progress holds a hand-off back here too
     dispatch({ type: 'restore', state: fn(state) })
     setTour({ ...tour, forYou: true })
   }

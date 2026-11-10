@@ -13,10 +13,9 @@ test('E2E-01a sample → confirm 3, reject 2 → hand off → allocation matches
   await reviewSample(page)
   await expect(totals).toContainText('£108,500.00')
   await expect(totals).toContainText('£6,340.00')
-  // only one reminder left: t11 unmatched for 13 days
+  // no reminder left: t11 is marked not part of this deal (C-REC-5)
   const failing = page.locator('.check-list li:not(.pass)')
-  await expect(failing).toHaveCount(1)
-  await expect(failing).toContainText('WESTBRIDGE SUPPLIES: not matched for 13 days')
+  await expect(failing).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Hand off to allocation' }).click()
   const t = page.getByTestId('alloc-totals')

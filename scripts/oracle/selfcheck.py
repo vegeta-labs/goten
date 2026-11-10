@@ -266,7 +266,7 @@ for k in ("chloe", "elena", "kavya", "james"):
 r = rec({"t03": {"assign": "chloe"}, "t05": {"assign": "elena"}, "t12": {"assign": "kavya"},
          "t11": {"reject": True}, "t14": {"reject": True}})
 eq("S-REC after decisions totals", r["totals"], {"bank": 11484000, "booked": 10850000, "unbooked": 634000})
-eq("S-REC after decisions aged", r["aged"], ["t11"])
+eq("S-REC after decisions aged", r["aged"], [])
 carried = {k: min(v["received"], c["cashDue"]) for c in commitments for k, v in r["commitments"].items()
            if c["id"] == k}
 eq("S-REC carry-in", (carried["hugo"], carried["david"], carried["james"], sum(carried.values())),
@@ -309,6 +309,13 @@ r = rec(None, [{"id": "a", "txnId": "a", "date": "2026-10-01", "amount": 999, "p
                {"id": "c", "txnId": "c", "date": "2026-10-03", "amount": 999, "payer": "", "reference": ""}],
         base, as_of="2026-10-12")
 eq("REC-18", r["aged"], ["a"])
+old_line = [{"id": "a", "txnId": "a", "date": "2026-10-01", "amount": 999, "payer": "", "reference": ""}]
+r = rec(None, old_line, base, as_of="2026-10-12")
+eq("REC-58 no decision is aged", (r["lines"]["a"]["status"], r["aged"], r["totals"]["unbooked"]),
+   ("unmatched", ["a"], 999))
+r = rec({"a": {"reject": True}}, old_line, base, as_of="2026-10-12")
+eq("REC-58 rejected is not aged, money stays unbooked", (r["lines"]["a"]["status"], r["aged"], r["totals"]["unbooked"]),
+   ("rejected", [], 999))
 four = [{"id": "j%d" % i, "name": "John Smith", "reference": "JS-%03d" % i, "cashDue": 100} for i in range(4)]
 x = rec(None, [{"id": "x", "txnId": "x", "date": "2026-10-10", "amount": 7, "payer": "J SMITH", "reference": ""}],
         four, as_of="2026-10-12")["lines"]["x"]

@@ -51,7 +51,7 @@ export const ADJUSTMENT_VOID_NOTE = 'This fee payer change no longer applies —
 /** C-REC-7 */
 export const NOT_COVERED_NOTE = 'Not covered by the active fee payer change — reverse and redo'
 /** C-ALL-11 */
-export const SETTINGS_CHANGED_NOTE = 'Allocation settings changed since this fee payer change — check the preview'
+export const SETTINGS_CHANGED_NOTE = 'Allocation settings changed since this fee payer change — any problems are listed here'
 
 export const activeChange = (changes: FeePayerChange[]): FeePayerChange | undefined => changes.find((c) => c.status === 'active')
 

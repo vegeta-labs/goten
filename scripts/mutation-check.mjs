@@ -132,8 +132,8 @@ const MUTANTS = [
   ['src/derive.ts', "return trimAscii(d.minimum) === '' ? 0 :", "return 0; trimAscii(d.minimum) === '' ? 0 :", 'minimum commitment ignored'],
   [
     'src/components/Allocation.tsx',
-    'disabled={!result || pending || isBlocked || refundsToCheck.length > 0} onClick={copy}',
-    'disabled={!result || pending || refundsToCheck.length > 0} onClick={copy}',
+    'const canSend = Boolean(result) && !pending && !isBlocked && refundsToCheck.length === 0 && !stale',
+    'const canSend = Boolean(result) && !pending && refundsToCheck.length === 0 && !stale',
     'copy allowed while the close is blocked',
   ],
   [
@@ -156,8 +156,8 @@ const MUTANTS = [
   ['src/state.ts', 'return { ...x, needsCheck: true }', 'return x', 'amount edit leaves refund unflagged (Codex M2 #2)'],
   [
     'src/components/Allocation.tsx',
-    'disabled={!result || pending || isBlocked || refundsToCheck.length > 0} onClick={copy}',
-    'disabled={!result || pending || isBlocked} onClick={copy}',
+    'const canSend = Boolean(result) && !pending && !isBlocked && refundsToCheck.length === 0 && !stale',
+    'const canSend = Boolean(result) && !pending && !isBlocked && !stale',
     'copy allowed with a flagged refund',
   ],
   ['src/state.ts', '((x as Record<string, unknown>).amount as number) > 0 &&', '', 'negative saved refund accepted (Codex M2 #5)'],
@@ -178,8 +178,8 @@ const MUTANTS = [
   // ---- M2 Codex round 2 fixes ----
   [
     'src/components/Allocation.tsx',
-    'disabled={!result || pending || isBlocked || refundsToCheck.length > 0} onClick={copy}',
-    'disabled={!result || isBlocked || refundsToCheck.length > 0} onClick={copy}',
+    'const canSend = Boolean(result) && !pending && !isBlocked && refundsToCheck.length === 0 && !stale',
+    'const canSend = Boolean(result) && !isBlocked && refundsToCheck.length === 0 && !stale',
     'copy allowed while a typed value is not yet calculated',
   ],
   ['src/components/Reconciliation.tsx', "? 'Finish your edit first.'", '? null', 'hand-off allowed during a pending edit'],
@@ -236,14 +236,14 @@ const MUTANTS = [
   ['src/derive.ts', "c: pct(x.catchUp, 'Exit, catch-up', true)", "c: pct(x.catchUp, 'Exit, catch-up', true) * 0", 'catch-up ignored'],
   [
     'src/App.tsx',
-    'allocOutcome?.ok && !blocked(allocOutcome.checks) && allocDerived.input && !pending',
-    'allocOutcome?.ok && allocDerived.input && !pending',
+    'allocOutcome?.ok && !blocked(allocOutcome.checks) && allocDerived.input && !pending && !allocationStale(state)',
+    'allocOutcome?.ok && allocDerived.input && !pending && !allocationStale(state)',
     'blocked allocation can be handed off to exit (C-03)',
   ],
   [
     'src/components/Distribution.tsx',
-    'disabled={!result || pending || isBlocked}',
-    'disabled={!result || pending}',
+    'disabled={!result || pending || isBlocked || stale}',
+    'disabled={!result || pending || stale}',
     'distribution exported despite a shortfall (R-DIS-07)',
   ],
   [
@@ -287,7 +287,7 @@ const MUTANTS = [
     'hidden ceiling on the last tier is parsed',
   ],
   ['src/tour/script.ts', 'r && terms && carryIsFullShare(r, terms.k)', 'r && terms', 'exit card claims "exactly" whatever the result (review M3 #4)'],
-  ['src/components/Distribution.tsx', 'disabled={!holdingList || pending}', 'disabled={true}', 'holdings export waits for the exit terms (review M3 #6)'],
+  ['src/components/Distribution.tsx', 'disabled={!holdingList || pending || stale}', 'disabled={true}', 'holdings export waits for the exit terms (review M3 #6)'],
   // ---- M3 Codex round 1 fixes ----
   [
     'src/App.tsx',
@@ -732,6 +732,29 @@ const MUTANTS = [
   ['src/lib/adjust.ts', 'effectiveDue(change, v.id, v.cashDue, v.reference).line === null)', 'false)', 'coverage and effective due disagree (Codex M6 r6 #3)'],
   ['src/derive.ts', ' && withdrawalStands(saved[x.id], x.reference)', '', 'a withdrawal counts after its reference changed (Codex M6 r6 #3)'],
   ['src/state.ts', ' && currencyLocked(s)) return s', ' && false) return s', 'currency changes while a fee payer change is active (decision 12)'],
+  // ---- fix/post-v125: out-of-date pages, mixed figures, reminders (PRD v0.8.9) ----
+  ['src/components/Allocation.tsx', ' && refundsToCheck.length === 0 && !stale', ' && refundsToCheck.length === 0', 'copy and export allowed while out of date (R-X-07)'],
+  ['src/App.tsx', 'allocDerived.input && !pending && !allocationStale(state)', 'allocDerived.input && !pending', 'an out-of-date allocation can be handed off to exit (R-X-07)'],
+  ['src/components/Distribution.tsx', 'disabled={!holdingList || pending || stale}', 'disabled={!holdingList || pending}', 'holdings export allowed while out of date (R-X-07)'],
+  ['src/components/Distribution.tsx', 'disabled={!result || pending || isBlocked || stale}', 'disabled={!result || pending || isBlocked}', 'distribution export allowed while out of date (R-X-07)'],
+  ['src/components/Distribution.tsx', '{stale && <p className="hint">Export is disabled until you hand off again, so old holdings are not sent on.</p>}', '', 'holdings export gives no reason while out of date'],
+  ['src/components/Distribution.tsx', 'data-testid="exit-stale-actions"', 'hidden', 'distribution export reason hidden'],
+  ['src/state.ts', 'allocationStale(s) && s.feePayerChanges.length > 0', 'false', 'mixed figures shown after a fee payer change (C-ALL-11)'],
+  ['src/state.ts', 'allocationStale(s) && s.feePayerChanges.length > 0', 's.feePayerChanges.length > 0', 'figures hidden after the fresh hand-off too'],
+  ['src/state.ts', 'allocationStale(s) && s.feePayerChanges.length > 0', 'allocationStale(s)', 'figures hidden on every stale allocation'],
+  ['src/components/Allocation.tsx', '{!heldBack && <Checks', '{<Checks', 'checks still shown with the figures held back'],
+  ['src/components/Allocation.tsx', 'if (copyMsg && (!canSend || copyMsg.copied !== confirmation)) setCopyMsg(null)', 'if (copyMsg && copyMsg.copied !== confirmation) setCopyMsg(null)', 'copied message stays once copying is off'],
+  ['src/components/Allocation.tsx', 'if (copyMsg && (!canSend || copyMsg.copied !== confirmation)) setCopyMsg(null)', 'if (copyMsg && !canSend) setCopyMsg(null)', 'copied message stays when the text changes'],
+  ['src/components/Allocation.tsx', 'data-testid="stale-actions"', 'hidden', 'copy and export give no reason while out of date'],
+  ['src/lib/reconcile.ts', "candidates: [], aged: false }", "candidates: [], aged: d.status === 'rejected' && d.ageDays > thresholdDays }", 'a line marked not part of this deal keeps the reminder (C-REC-5)'],
+  ['src/App.tsx', 'exitStale(state) || (state.exit.handoffVersion !== null && stale)', 'exitStale(state)', 'holdings from an out-of-date allocation not marked (R-X-07)'],
+  ['src/App.tsx', 'exitStale(state) || (state.exit.handoffVersion !== null && stale)', 'exitStale(state) || stale', 'imported holdings marked out of date'],
+  ['src/tour/script.ts', 'blocked(o.checks) || allocationStale(s)) return s', 'blocked(o.checks)) return s', 'the tour hands on from an out-of-date allocation (R-X-07)'],
+  ['src/components/Allocation.tsx', '{a.excess.length > 0 && !heldBack && (', '{a.excess.length > 0 && (', 'refund list shown with the figures held back (C-ALL-11)'],
+  ['src/tour/script.ts', 'alloc: ao?.ok && !figuresHeldBack(state) ? ao.result : null', 'alloc: ao?.ok ? ao.result : null', 'tour cards show mixed figures (C-ALL-11)'],
+  ['src/App.tsx', 'if (!tour || !fn || pending) return', 'if (!tour || !fn) return', 'the tour hands on past an edit in progress (C-03)'],
+  ['src/tour/script.ts', "${c.alloc ? names.join(', ') || 'Nobody' : MISSING} would fall", "${names.join(', ') || 'Nobody'} would fall", 'tour says nobody is affected when the figures are held back'],
+  ['src/lib/adjust.ts', '— any problems are listed here', '— check the preview', 'reminder points at a preview that is not shown'],
 ]
 
 // Small-fix track (Rules G2 step 0): `--files a.ts,b.tsx` runs only the mutants in those files; the full run is due before release (G3)

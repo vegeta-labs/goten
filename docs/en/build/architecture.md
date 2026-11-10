@@ -63,7 +63,7 @@ Check kinds, defined in `outcome.ts`:
 
 ## Hand-offs and decisions
 
-Hand-offs between modules are snapshots, not live links. Each carries the version of the data it was taken from (`recVersion`, `allocVersion`). A later upstream change makes the downstream page show **out of date** until the user hands off again.
+Hand-offs between modules are snapshots, not live links. Each carries the version of the data it was taken from (`recVersion`, `allocVersion`). A later upstream change makes the downstream page show **out of date** until the user hands off again. While it does, that page cannot copy, export or hand on, and holdings carried from an allocation that is out of date count as out of date too. An allocation that is out of date on a deal with any fee payer change record also shows no figures, because the fee table changes at once and the investor amounts only at the next hand-off.
 
 A reconciliation decision is pinned to fingerprints of the bank line and the investor (`lineFingerprint`, `commitmentFingerprint`). If either changes, the decision is voided for good and the line returns to a person.
 

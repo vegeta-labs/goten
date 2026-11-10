@@ -105,4 +105,4 @@ Open **Activity log** to see every decision you just made, newest first.
 | **Hand-off disabled: Review the 3 suggested matches first.**          | A suggestion is still waiting. Decide it under **Needs your review**.                                                            |
 | **Hand off to allocation** stays greyed out                           | Read the line under the buttons. If it says **Finish your edit first.**, press Enter or click out of the field you were editing. |
 | Different figures from this page                                      | You changed something, or some suggestions were decided differently. **Load sample deal** starts again.                          |
-| **out of date** next to **2. Allocation** or **3. Exit distribution** | Something upstream changed after the hand-off. Open the page and click **Hand off again**.                                       |
+| **out of date** next to **2. Allocation** or **3. Exit distribution** | Something upstream changed after the hand-off. Open the page and click **Hand off again**. If **3. Exit distribution** has no such button, hand off again on **2. Allocation** first. |

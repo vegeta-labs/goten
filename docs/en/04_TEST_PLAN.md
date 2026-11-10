@@ -6,6 +6,7 @@ The scripts that check test coverage read the Chinese file; this English file is
 
 Version v0.8 (last revised 2026-10-25; based on PRD v0.8, passed 3 rounds of Codex review, approved by the owner 2026-10-25) · 2026-10-17 · Status: **Approved (2026-10-17)** · Based on: PRD v0.7
 
+- v0.8.1 → v0.8.2 (2026-11-09): adds TC-REC-58, TC-ALL-50 to 52, TC-DIS-32 (PRD v0.8.9), milestone 〔M6〕; the TC-ALL-42 reminder text, the sample's checks after review and M-02 are updated to match.
 - v0.8 → v0.8.1 (2026-11-09): adds TC-REC-55 to 57, TC-X-21 to 23, E2E-10 (PRD v0.8.8: R-REC-01.3, R-X-01.3), milestone 〔M6〕.
 - v0.1 → v0.2: changed per Codex review #16 #17 #21 #24: each acceptance point maps to a test; independent recalculation extended to adversarial cases; new cases for boundaries, invalid input, formats and end-to-end; sample deal rewritten under the v0.2 default conventions, with numbers that can be frozen. All hand-calculated numbers were rechecked with Python `decimal`.
 - v0.2 → v0.3: added cases per round 2 R2-01/04/05/08/09/10/11/12/13; each case tagged with its due milestone; reset steps added to the manual checklist; default conditions for exit distribution written out in full.
@@ -254,7 +255,7 @@ Due milestones: 〔M5〕 = the first v0.8 PR (chasing payments: R-REC-10, R-X-08
 | TC-REC-54 〔M6〕 | C-REC-7, C-ALL-11 | With the change in effect and Lucas withdrawn, change Amelia's reference `NW-001` to `NW 001` and Lucas's `NW-012` to `NW 012` | Neither counts as a change: Amelia's effective amount due is still £9,700.00, with no voiding notice or entry; Lucas is still withdrawn |
 | TC-ALL-40 〔M6〕 | C-ALL-10 step 3 | On top, minimum £1,000, A due £1,000, B due £2,000, 3% investors pay → company pays | In step 1 A does not take part (M = ⌊1,000 ÷ 1.03⌋ = £970.87 < £1,000), B does; in step 3 A would take part (M = £1,000.00): block "would join the allocation", naming A |
 | TC-ALL-41 〔M6〕 | C-ALL-10 step 1 | After review, change the cap to £80,000, then open the fee payer change panel | Block "The round is over the cap — resolve the scale-back first", plus blocks for those below the minimum after scale-back (e.g. Isla Campbell); no differences shown, cannot apply |
-| TC-ALL-42 〔M6〕 | C-ALL-11 reminder | Continue from TC-ALL-36 after applying: change the minimum from £970 back to £1,000 | The change is not voided; "Allocation settings changed since this fee payer change — check the preview" shows; the recomputed step 3 shows a block for Isla Campbell |
+| TC-ALL-42 〔M6〕 | C-ALL-11 reminder | Continue from TC-ALL-36 after applying: change the minimum from £970 back to £1,000 | The change is not voided; "Allocation settings changed since this fee payer change — any problems are listed here" shows; the recomputed step 3 shows a block for Isla Campbell |
 | TC-ALL-43 〔M6〕 | C-ALL-10 step 2 | Randomly generated inputs across both conventions, 1–5 investor percentage fees, with and without a per-investor fixed fee (fixed seed, 3,000 sets) | In every set N_i gives I(N_i) = T_i, and at N_i − 1 penny I < T_i |
 | TC-X-17 〔M5〕 | C-X-1 import | ① After review, replace the whole statement with the sample's own bank file; ② then append the same file (all duplicate rows with the same transaction IDs); ③ replace the commitments roster so that a previously unmatched line becomes an exact match | ① the `import` auto-match count is 9; ② 0 rows added, 0 auto-matched; ③ auto-match count 1 |
 | TC-X-18 〔M5〕 | §5.5 activity log CSV | Make a decision in a GBP deal, change the deal to USD and make another, export | First row `currency` is `GBP`, second `USD`; events without an amount also carry the currency at that time |
@@ -269,6 +270,11 @@ Due milestones: 〔M5〕 = the first v0.8 PR (chasing payments: R-REC-10, R-X-08
 | TC-REC-55 〔M6〕 | R-REC-01.3 | After review, a withdrawal and a fee payer change, re-import the same list with blank IDs; also: re-import keeping IDs, change one reference only, entries already void, an ID of `__proto__`, a blank ID that is only a new investor | The counts equal exactly what the real import voids and the simulation leaves the data unchanged; keeping IDs gives none; entries already void are not counted again; blank IDs are named only when a blank-ID row is the lost investor |
 | TC-REC-56 〔M6〕 | R-REC-01.3 | On the page re-import with blank IDs and read the warning; click Cancel; then Import anyway | The warning states the counts and the blank IDs, focus on Cancel; cancel changes nothing and focus returns to the import button; proceeding gives the same result as the direct import, with the usual import message |
 | TC-REC-57 〔M6〕 | R-REC-01.3 | Import a list with nothing to void; change the data, import again, or edit the pasted text while the warning is open | No warning, it imports at once; the warning closes and the earlier import is not applied |
+| TC-REC-58 〔M6〕 | R-REC-06, C-REC-5 | An unmatched line 11 days from the cut-off date; mark it "Not part of this deal"; undo the mark | While unmatched it shows "Needs review: unmatched for 11 days" and a reminder; once marked, neither shows and the not-posted amount is unchanged; after undoing they return |
+| TC-ALL-50 〔M6〕 | R-X-07, R-ALL-10, R-ALL-11 | After review carry the sample into allocation, then into exit; change one item in reconciliation so the allocation is out of date; carry again; another time use the tour's "Do this for me" to hand on to exit while the allocation is out of date | While out of date "Copy closing confirmation", "Export allocation CSV" and "Hand off to exit distribution" are disabled and the page says to carry again; the exit page shows out of date too, both exports are disabled, it has no "Hand off again" button and says to deal with the allocation first; after carrying again all three work; the tour does not hand on |
+| TC-ALL-51 〔M6〕 | R-ALL-12.3, C-ALL-11 | Continue from TC-ALL-36 after applying: ① do not carry again; ② carry again; ③ reverse and do not carry again; ④ carry again; ⑤ with a change on record and carried again, change a bank line so the allocation is out of date | ① ③ ⑤ no refund list, result, checks or confirmation, and the page says why; ② total invested £100,455.00, company-paid fees £4,513.65, wire to company £95,941.35, Amelia invests £9,700.00; ④ total invested £100,395.00, wire to company £98,895.00 |
+| TC-ALL-52 〔M6〕 | R-ALL-10 | Copy the confirmation, see "Copied to the clipboard.", then: ① set the cap to £80,000 so a blocker appears; ② another time change the share price so the confirmation changes; ③ another time make the allocation out of date; ④ a failed copy shows "Could not copy…", then a blocker appears | The message goes each time; it does not come back by itself once the blocker is resolved, the text must be copied again |
+| TC-DIS-32 〔M6〕 | R-X-07 | After carrying into exit, change the allocation share price so the exit is out of date; carry again; another time import holdings directly | While out of date "Export holdings CSV" and "Export distribution CSV" are disabled and the page says to carry again; after carrying again they work; imported holdings are not out of date and are unaffected |
 | TC-X-21 〔M6〕 | R-X-01.3 | Click Load sample deal on a fresh page; click it again (pure sample) | No question, it loads at once |
 | TC-X-22 〔M6〕 | R-X-01.3 | Click Load sample deal with investors, bank lines, decisions or inputs on the page; click Cancel; then Replace with sample | The exact question, focus on Cancel; cancel changes nothing; confirming gives the same result as the direct load, focus returns to the button |
 | TC-X-23 〔M6〕 | R-X-01.3 | Only the log differs (a decision made and undone on the sample); entries were truncated; click the button during the tour; start the tour while the question is open | The first two ask; during the tour it still restarts the tour and this question does not appear; starting the tour closes the question |
@@ -304,7 +310,7 @@ A fictional "Northwind Robotics seed round SPV". Settings: GBP; cut-off date 202
 
 **Reconciliation, before manual handling**: 14 bank lines in reconciliation, total **£114,840.00**; 9 auto-matched **£66,000.00**; 3 suggestions **£42,500.00**; 2 unmatched **£6,340.00**. Status: Amelia, Ben, Farhan, Grace, Isla, Lucas paid in full; David underpaid −£500; Hugo overpaid +£5,000; Chloe, Elena, Kavya, James unpaid.
 
-**After confirming the 3 suggestions and marking t11 and t14 as not part of this deal**: posted **£108,500.00**; not posted **£6,340.00**; the check shows only one "long unmatched" reminder (t11).
+**After confirming the 3 suggestions and marking t11 and t14 as not part of this deal**: posted **£108,500.00**; not posted **£6,340.00**; all checks pass, with no reminder (t11 is marked not part of this deal, so it no longer counts as long unmatched).
 
 **Carry into allocation**: Hugo carried £5,000, refund due £5,000; David £2,000; James £0.
 
@@ -339,7 +345,7 @@ Every other row (units, each person's exit proceeds) is generated in M1 by both 
 ## 5. Manual acceptance checklist
 PRs check only the items relevant to that PR; before release, check all of them. Before each item, click "Reset sample" to restore the sample deal to its initial state, unless the item says it continues from the previous one.
 - [ ] M-01 Load the sample; reconciliation numbers match §3
-- [ ] M-02 (Continue from M-01) Confirm 3, reject 2; the check shows only one long-unmatched reminder
+- [ ] M-02 (Continue from M-01) Confirm 3, reject 2; all checks pass, with no long-unmatched reminder
 - [ ] M-03 (Continue from M-02) Carry into allocation; the Amelia, David and Isla rows and the totals match §3; checks all green
 - [ ] M-04 (Continue from M-03) Change the cap to £80,000 → scaled down pro rata; when someone falls below the minimum, "cannot close" and the list are shown
 - [ ] M-05 (removed in v0.7: direct holding) Check that the UI shows the holding structure as nominee (bare trust), with no option to switch
@@ -386,7 +392,7 @@ Note: this lists "which cases verify this requirement". An ID being present does
 | R-REC-04.3 | TC-REC-05 |
 | R-REC-04.4 | TC-REC-09, 10, 24 |
 | R-REC-05 | TC-REC-14, 23 |
-| R-REC-06 | TC-REC-18, 26 |
+| R-REC-06 | TC-REC-18, 26, 58 |
 | R-REC-07 | TC-REC-19 |
 | R-REC-08 | TC-REC-21, 23, 29 |
 | R-REC-09 | TC-REC-22, 27, TC-IO-11 |
@@ -403,9 +409,9 @@ Note: this lists "which cases verify this requirement". An ID being present does
 | R-ALL-07 | TC-ALL-15 |
 | R-ALL-08 | TC-ALL-10, 13, 14 |
 | R-ALL-09 | TC-ALL-18, 23 |
-| R-ALL-10 | TC-ALL-20, 24, 30 |
+| R-ALL-10 | TC-ALL-20, 24, 30, 50, 52 |
 | R-ALL-11 | E2E-01b, E2E-02b |
-| R-ALL-12 | TC-ALL-31 to 49, TC-IO-47, E2E-09, M-13 |
+| R-ALL-12 | TC-ALL-31 to 49, 51, TC-IO-47, E2E-09, M-13 |
 | R-DIS-01 | TC-DIS-21, 22, 23, 24, 26, TC-IO-17, E2E-01b |
 | R-DIS-02 | TC-DIS-03, 08 |
 | R-DIS-03 | TC-DIS-01, 04 ~ 08, 16, 20 |
@@ -419,7 +425,7 @@ Note: this lists "which cases verify this requirement". An ID being present does
 | R-X-04 | TC-X-03, E2E-07, M-09, M-10 (P1) |
 | R-X-05 | TC-X-01, TC-X-14, TC-X-15, M-08 |
 | R-X-06 | TC-X-02, E2E-06 |
-| R-X-07 | E2E-02a, E2E-02b |
+| R-X-07 | TC-ALL-50, 51, TC-DIS-32, E2E-02a, E2E-02b |
 | R-X-08 | TC-X-05, 06, 07, 08, 09, 10, 13, 16, 17, 18, 19, E2E-08, M-12 |
 | R-X-01.2 | TC-X-11, TC-X-12, TC-X-20, E2E-05 |
 | R-X-01.3 | TC-X-21, 22, 23, E2E-10 |

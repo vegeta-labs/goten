@@ -283,8 +283,9 @@ describe('M2 interface', () => {
     )
     expect(screen.getAllByRole('radio').map((r) => r.getAttribute('name'))).toEqual(['feeBasis', 'feeBasis']) // no holding-structure choice
     fireEvent.click(screen.getByRole('tab', { name: /Reconciliation/ }))
-    reviewSample()
+    click('Load sample deal') // while t11 is unmatched and old enough to carry the reminder (C-REC-5)
     expect(page()).toMatch(/Operational reminder, not a regulatory deadline/)
+    reviewSample()
     click('Hand off to allocation')
     expect(page()).toContain(
       'This estimate uses whole shares in the final allocation. Fees, scale-back and rounding can leave a remainder even when the wire is a multiple of the share price. Check the final allocated share count.',

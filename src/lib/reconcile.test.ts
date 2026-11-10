@@ -219,6 +219,18 @@ describe('reconciliation', () => {
     expect(AGED_NOTE).toMatch(/Operational reminder, not a regulatory deadline/)
   })
 
+  it('TC-REC-58 a line marked not part of this deal is not aged and has no reminder; the same line with no decision is', () => {
+    const old = L(1, 'X', '', '2026-10-01', 'old')
+    const marked = reconcile({ commitments: base, lines: [old], decisions: { old: decide(old, null) }, asOf: '2026-10-12', thresholdDays: 10 })
+    const open = reconcile({ commitments: base, lines: [old], decisions: {}, asOf: '2026-10-12', thresholdDays: 10 })
+    if (!marked.ok || !open.ok) throw new Error('failed')
+    expect(marked.result.lines.map((l) => [l.status, l.aged, l.ageDays])).toEqual([['rejected', false, 11]])
+    expect(marked.checks.filter((c) => c.id === 'aged-old')).toEqual([])
+    expect(marked.result.totals.unbooked).toBe(open.result.totals.unbooked)
+    expect(open.result.lines.map((l) => l.aged)).toEqual([true])
+    expect(open.checks.filter((c) => c.id === 'aged-old').map((c) => c.pass)).toEqual([false])
+  })
+
   it('TC-REC-27 the chase list holds only short and unpaid investors', () => {
     const r = run(SAMPLE_BANK, {}, SAMPLE_COMMITMENTS, '2026-10-16')
     // the message column holds line breaks, so the file is read as CSV, not split by line

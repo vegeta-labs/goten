@@ -191,7 +191,9 @@ describe('Change who pays a fee on the page (R-ALL-12, R-REC-12)', () => {
     tab(/Deal settings/)
     type('Minimum commitment', '1000')
     tab(/Allocation/)
-    expect(screen.getByTestId('settings-changed').textContent).toBe('Allocation settings changed since this fee payer change — check the preview')
+    expect(screen.getByTestId('settings-changed').textContent).toBe(
+      'Allocation settings changed since this fee payer change — any problems are listed here',
+    )
     expect(screen.getByTestId('recheck-blockers').textContent).toBe('Isla Campbell would fall below the minimum commitment')
   })
 })
@@ -221,7 +223,7 @@ describe('Codex M6 round 1', () => {
     type('Minimum commitment', '1000')
     tab(/Allocation/)
     const after = within(screen.getByRole('region', { name: /Change who pays a fee/ })).getByRole('status', { name: 'Fee payer change re-check' })
-    expect(after.textContent).toContain('Allocation settings changed since this fee payer change — check the preview')
+    expect(after.textContent).toContain('Allocation settings changed since this fee payer change — any problems are listed here')
     expect(after.textContent).toContain('Isla Campbell would fall below the minimum commitment')
   })
 })

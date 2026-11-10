@@ -323,7 +323,7 @@ export function reconcile(input: ReconcileInput): Outcome<ReconcileResult> {
   const feats = commitments.map((c) => ({ cref: normRef(c.reference), digits: digitsValue(c.reference), name: nameTokens(c.name) }))
   const results: LineResult[] = drafts.map((d) => {
     const { exact, ...rest } = d
-    if (d.status !== 'unmatched') return { ...rest, candidates: [], aged: d.status === 'rejected' && d.ageDays > thresholdDays }
+    if (d.status !== 'unmatched') return { ...rest, candidates: [], aged: false }
     const runs = tokenRuns(d.line.reference)
     const runDigits = runs.map(digitsValue).filter((v): v is bigint => v !== null)
     const payer = nameTokens(d.line.payer)

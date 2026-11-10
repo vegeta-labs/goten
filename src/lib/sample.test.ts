@@ -49,7 +49,7 @@ describe('sample deal (Test Plan §3)', () => {
     const o = rec(decisions)
     expect(o.result.totals).toMatchObject({ booked: 10_850_000, unbooked: 634_000 })
     const open = o.checks.filter((x) => !x.pass)
-    expect(open.map((x) => x.id)).toEqual(['aged-t11'])
+    expect(open.map((x) => x.id)).toEqual([])
 
     const h = handoffToAllocation(o.result)
     if (!h.ok) throw new Error(h.reason)

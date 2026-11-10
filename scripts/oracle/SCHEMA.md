@@ -119,7 +119,7 @@ Output:
 ```
 - `skipped` = amount ≤ 0; `future` = date after `asOf`. Neither counts in totals, neither has candidates.
 - `candidates` only for `suggested` lines (empty list otherwise); `score` rounded to 4 decimal places.
-- `aged`: line ids that are not booked (suggested, unmatched or rejected) and whose age in days (asOf − date) is greater than `thresholdDays`; sorted.
+- `aged`: line ids whose status is `suggested` or `unmatched` and whose age in days (asOf − date) is greater than `thresholdDays`; sorted. A `rejected` line ("Not part of this deal") is not aged (C-REC-5, v0.8.9): it has been reviewed, and its amount still counts in `unbooked`. The same line with no decision is aged again.
 
 ### reconcile — v0.8 extension (C-REC-7 withdrawal, C-ALL-11 effective cash due)
 

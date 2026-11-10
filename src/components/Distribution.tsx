@@ -6,7 +6,7 @@ import { blocked } from '../lib/outcome'
 import type { WaterfallResult } from '../lib/waterfall'
 import { importHoldings } from '../lib/csv'
 import { distributionCsv, holdingsCsv, sharesDisplay } from '../lib/exports'
-import { holdingRow, type Action, type AppState } from '../state'
+import { exitStale, holdingRow, type Action, type AppState } from '../state'
 import { Cell, Checks, ErrorList, ImportBox, Notice, Section, Term, UpdatingNotice } from './common'
 import { useListMessage } from './listMessage'
 import { deriveHoldings, holdingCapitals } from '../derive'
@@ -68,7 +68,12 @@ export function Distribution({
       <p className="hint">One investment, one exit, the same terms for every investor. Each investor’s share follows the amount they invested.</p>
       {stale && (
         <Notice kind="warn">
-          <span data-testid="exit-stale">Out of date: the allocation has changed since these holdings were handed off.</span>{' '}
+          <span data-testid="exit-stale">
+            Out of date:{' '}
+            {exitStale(state)
+              ? 'the allocation has changed since these holdings were handed off.'
+              : 'reconciliation has changed since the allocation behind these holdings.'}
+          </span>{' '}
           {canHandoff ? (
             <button type="button" onClick={onHandoff}>
               Hand off again (replaces the holdings)
@@ -152,12 +157,13 @@ export function Distribution({
           </button>
           <button
             type="button"
-            disabled={!holdingList || pending}
+            disabled={!holdingList || pending || stale}
             onClick={() => holdingList && download(`holdings_${cur}.csv`, holdingsCsv(holdingList, x.sharePriceMicros, cur))}
           >
             Export holdings CSV
           </button>
         </div>
+        {stale && <p className="hint">Export is disabled until you hand off again, so old holdings are not sent on.</p>}
       </Section>
 
       <h3>Exit</h3>
@@ -285,13 +291,18 @@ export function Distribution({
       <div className="row-actions">
         <button
           type="button"
-          disabled={!result || pending || isBlocked}
+          disabled={!result || pending || isBlocked || stale}
           onClick={() => result && download(`distribution_${cur}.csv`, distributionCsv(result, x.sharePriceMicros, cur))}
         >
           Export distribution CSV
         </button>
       </div>
       {result && isBlocked && <p className="hint">Export is disabled until the shortfall is resolved.</p>}
+      {stale && (
+        <p className="hint" data-testid="exit-stale-actions">
+          Export is disabled until you hand off again, so old figures are not sent on.
+        </p>
+      )}
     </section>
   )
 }

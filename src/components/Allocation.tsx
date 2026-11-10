@@ -6,7 +6,7 @@ import type { InputError, Outcome } from '../lib/outcome'
 import { blocked } from '../lib/outcome'
 import { importInvestors } from '../lib/csv'
 import { allocationCsv, closingConfirmation } from '../lib/exports'
-import { investorRow, type Action, type AppState, type FeeRow } from '../state'
+import { figuresHeldBack, investorRow, type Action, type AppState, type FeeRow } from '../state'
 import { Cell, Checks, ErrorList, ImportBox, Notice, Section, Term, UpdatingNotice } from './common'
 import { useListMessage } from './listMessage'
 import { download } from './download'
@@ -77,12 +77,16 @@ export function Allocation({
   // bumps whenever the investor list is replaced whole: the section and its rows start afresh (Codex M2 R3 #7, G3 M-11)
   const listKey = state.tables.investors
   const [importMsg, setImportMsg] = useListMessage<{ ok: true; text: string } | { ok: false; errors: InputError[] }>(listKey)
-  const [copyMsg, setCopyMsg] = useState<string | null>(null)
-  const result = outcome?.ok ? outcome.result : null
+  const [copyMsg, setCopyMsg] = useState<{ text: string; copied: string } | null>(null)
+  const heldBack = figuresHeldBack(state)
+  const result = outcome?.ok && !heldBack ? outcome.result : null
   const internal = outcome !== null && !outcome.ok && Boolean(outcome.internal)
   const isBlocked = outcome?.ok ? blocked(outcome.checks) : true
   const refundsToCheck = a.excess.filter((x) => x.needsCheck)
   const confirmation = result && priceMicros !== null ? closingConfirmation(state.deal.name, cur, priceMicros, result, a.excess) : ''
+  const canSend = Boolean(result) && !pending && !isBlocked && refundsToCheck.length === 0 && !stale
+  // what the message says stops being true once this text cannot be sent, or is no longer the text on the page
+  if (copyMsg && (!canSend || copyMsg.copied !== confirmation)) setCopyMsg(null)
 
   const doImport = (text: string) => {
     const r = importInvestors(text, cur)
@@ -99,9 +103,9 @@ export function Allocation({
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(confirmation)
-      setCopyMsg('Copied to the clipboard.')
+      setCopyMsg({ text: 'Copied to the clipboard.', copied: confirmation })
     } catch {
-      setCopyMsg('Could not copy. Select the text above and copy it yourself.')
+      setCopyMsg({ text: 'Could not copy. Select the text above and copy it yourself.', copied: confirmation })
     }
   }
 
@@ -263,7 +267,7 @@ export function Allocation({
         </button>
       </Section>
 
-      {a.excess.length > 0 && (
+      {a.excess.length > 0 && !heldBack && (
         <>
           <h4>Refunds outside the allocation (not carried into it)</h4>
           <ul data-testid="excess">
@@ -291,12 +295,20 @@ export function Allocation({
       <h3>Result</h3>
       <ErrorList errors={derivedErrors} title="Input errors — no results until these are fixed" />
       {pending && <UpdatingNotice />}
+      {heldBack && (
+        <Notice kind="warn">
+          <span data-testid="fee-change-held">
+            No figures until you hand off again: a fee payer change moves the fee at once, but the investors’ amounts here only update at hand-off, so figures
+            now would be wrong.
+          </span>
+        </Notice>
+      )}
       {result && (
         <div className={pending ? 'figures pending' : 'figures'} aria-busy={pending}>
           <AllocResult r={result} m={m} />
         </div>
       )}
-      <Checks checks={outcome?.ok ? outcome.checks : []} unavailable={derivedErrors.length > 0} internal={internal} pending={pending} />
+      {!heldBack && <Checks checks={outcome?.ok ? outcome.checks : []} unavailable={derivedErrors.length > 0} internal={internal} pending={pending} />}
 
       {result && (
         <>
@@ -308,21 +320,22 @@ export function Allocation({
         </>
       )}
       <div className="row-actions">
-        <button type="button" disabled={!result || pending || isBlocked || refundsToCheck.length > 0} onClick={copy}>
+        <button type="button" disabled={!canSend} onClick={copy}>
           Copy closing confirmation
         </button>
-        <button
-          type="button"
-          disabled={!result || pending || isBlocked || refundsToCheck.length > 0}
-          onClick={() => result && download(`allocation_${cur}.csv`, allocationCsv(result, cur))}
-        >
+        <button type="button" disabled={!canSend} onClick={() => result && download(`allocation_${cur}.csv`, allocationCsv(result, cur))}>
           Export allocation CSV
         </button>
         <button type="button" className="primary" data-tour="handoff-exit" disabled={!canHandoffToExit} onClick={onHandoffToExit}>
           Hand off to exit distribution
         </button>
       </div>
-      {copyMsg && <Notice kind="info">{copyMsg}</Notice>}
+      {copyMsg && <Notice kind="info">{copyMsg.text}</Notice>}
+      {stale && (
+        <p className="hint" data-testid="stale-actions">
+          Copy, export and hand-off to exit are disabled until you hand off again, so old figures are not sent on.
+        </p>
+      )}
       {result && isBlocked && <p className="hint">Copy and export are disabled until the blockers above are resolved.</p>}
       {result && refundsToCheck.length > 0 && <p className="hint">Copy and export are disabled until you keep or remove the flagged refund.</p>}
     </section>

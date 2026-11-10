@@ -14,7 +14,7 @@ import {
   SAMPLE_CAP_TEXT,
   tryNext,
 } from './script'
-import { initialState, reducer } from '../state'
+import { allocationStale, initialState, reducer } from '../state'
 import { carryIsFullShare, distribute } from '../lib/waterfall'
 
 const base = initialState(new Date('2026-10-20T12:00:00Z'))
@@ -77,6 +77,27 @@ describe('guided tour script', () => {
       'exactly 20% of the profit: £57,021.00',
     ])
       expect(all).toContain(figure)
+  })
+
+  it('TC-ALL-50 the tour does not hand on to exit from an allocation that is out of date', () => {
+    const i = STEPS.findIndex((x) => x.id === 'confirmation')
+    const stale = reducer(stateAt(i, initialState(new Date('2026-10-20T12:00:00Z'))), { type: 'setDeal', patch: { asOf: '2026-10-17' } })
+    expect(allocationStale(stale)).toBe(true)
+    expect(STEPS[i].action!.perform(stale).exit.handoffVersion).toBeNull()
+  })
+
+  it('TC-ALL-51 the tour cards show no allocation figures while they are held back after a fee payer change', () => {
+    const i = STEPS.findIndex((x) => x.id === 'allocated')
+    const ready = reducer(stateAt(i, initialState(new Date('2026-10-20T12:00:00Z'))), { type: 'setDeal', patch: { minimum: '970' } })
+    expect(context(ready).alloc).not.toBeNull()
+    const moved = reducer(ready, { type: 'applyFeePayerChange', feeId: 'f1', to: 'company', consent: true })
+    expect(moved.feePayerChanges.length).toBe(1)
+    expect(context(moved).alloc).toBeNull()
+    expect(STEPS[i].text(context(moved), false)).not.toContain('£10,000.00 of shares')
+    expect(STEPS[i + 1].text(context(moved), false)).toContain(MISSING)
+    const scale = STEPS.find((x) => x.id === 'scale-back')!
+    expect(scale.text(context(moved), true)).toContain(MISSING)
+    expect(scale.text(context(moved), true)).not.toContain('Nobody')
   })
 
   it('R-X-01 each action step is not done before its action and done after it', () => {

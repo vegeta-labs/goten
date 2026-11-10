@@ -11,7 +11,7 @@ import { SAMPLE_CAP, SAMPLE_FEES } from '../lib/sample'
 import { previewFeePayerChange } from '../lib/feePayer'
 import { deriveAllocation, deriveDistribution, deriveFeePayerInput, deriveReconcile } from '../derive'
 import { activeChange } from '../lib/adjust'
-import { allocationStale, exitStale, initialState, reducer, sampleState, type AppState } from '../state'
+import { allocationStale, exitStale, figuresHeldBack, initialState, reducer, sampleState, type AppState } from '../state'
 
 /** Shown in place of a figure the engines could not provide (a test asserts it never appears on the sample). */
 export const MISSING = '(unavailable)'
@@ -42,7 +42,7 @@ export function context(state: AppState, demoFrom: string | null = null): Ctx {
   return {
     state,
     rec: ro?.ok ? ro.result : null,
-    alloc: ao?.ok ? ao.result : null,
+    alloc: ao?.ok && !figuresHeldBack(state) ? ao.result : null,
     exit: eo?.ok ? eo.result : null,
     allocInput: a.input,
     exitInput: e.input,
@@ -105,7 +105,7 @@ function handOffToAllocation(s: AppState): AppState {
 function handOffToExit(s: AppState): AppState {
   const d = deriveAllocation(s)
   const o = d.input ? allocate(d.input) : null
-  if (!d.input || !o?.ok || blocked(o.checks)) return s
+  if (!d.input || !o?.ok || blocked(o.checks) || allocationStale(s)) return s
   const snap = holdingsFromAllocation(o.result, d.input.priceMicros, s.allocVersion)
   return reducer(s, { type: 'handoffToExit', holdings: snap.data.rows, sharePriceMicros: snap.data.sharePriceMicros!, tour: true })
 }
@@ -257,7 +257,7 @@ export const STEPS: Step[] = [
     text: (c, demo) => {
       if (!demo) return 'When a round is oversubscribed, everyone is scaled back pro rata. See what happens with a smaller cap.'
       const names = c.alloc?.blockers.find((b) => b.code === 'scale-back-below-minimum')?.names ?? []
-      return `${names.join(', ') || 'Nobody'} would fall below the ${money(c, c.allocInput?.minimum)} minimum, so the allocation is blocked and named — the tool won't fix it quietly. Next puts the cap back to ${capWords(c)}.`
+      return `${c.alloc ? names.join(', ') || 'Nobody' : MISSING} would fall below the ${money(c, c.allocInput?.minimum)} minimum, so the allocation is blocked and named — the tool won't fix it quietly. Next puts the cap back to ${capWords(c)}.`
     },
   },
   {
