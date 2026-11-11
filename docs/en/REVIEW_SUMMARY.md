@@ -1,6 +1,6 @@
 # Review summary
 
-How each stage of Deal Ops Toolkit was reviewed before it was accepted, written on 2026-10-20 at release v1.0.0, updated on 2026-10-21 at release v1.1.0, on 2026-10-26 for release v1.1.1, on 2026-10-27 for release v1.2.0, on 2026-10-28 for release v1.2.1 and for release v1.2.2. The raw review output and the item-by-item triage notes stay in the private development repository; this summary replaces them in the public one.
+How each stage of Goten — Deal Calculations (called Deal Ops Toolkit until v1.2.2) was reviewed before it was accepted, written on 2026-10-20 at release v1.0.0, updated on 2026-10-21 at release v1.1.0, on 2026-10-26 for release v1.1.1, on 2026-10-27 for release v1.2.0, on 2026-10-28 for releases v1.2.1 and v1.2.2, and on 2026-11-11 for releases v1.2.3 to v1.3.1. The raw review output and the item-by-item triage notes stay in the private development repository; this summary replaces them in the public one. It is brought up to date at minor releases, not at every patch release.
 
 ## How a review works
 
@@ -8,7 +8,9 @@ How each stage of Deal Ops Toolkit was reviewed before it was accepted, written 
 - **One pull request per milestone**, with automated checks: type check, lint, unit tests, a check that every test-plan case due at that milestone ran and passed, the independent Python oracle, a production build and, from M2, end-to-end browser tests.
 - **Self-test gate.** After the first code review (M1, round 1), a self-test gate runs before the first Codex review of each pull request, and before every M1 round from round 2: rule-by-rule comparison with the code, hostile inputs, mutation testing (each deliberate breakage must be caught by a test), and a fresh-context reviewer agent that uses the same prompt as Codex. Its findings are fixed first. Later rounds re-run the tests and the mutation check on the fixes.
 - **Codex cross-review** until it returns `READY`, or `READY AFTER FIXES` with the fixes applied. Verdicts: `REWORK` (fix and review again), `READY AFTER FIXES` (fix; a further round is optional, and was run when the fixes were substantial), `READY`.
-- **Owner acceptance** before merge; production deploys only from the `release` branch after the release gate (G3) and the owner's explicit OK.
+- **From 2026-10-30**, small changes that touch only styles, copy or docs skip Codex and get the self-test gate only.
+- **From 2026-11-09, risk levels.** Each change is graded first. Low (copy, style, docs): self-test and CI. Medium: one fresh-context review. High (calculations, money, rounding, import and export formats, user docs about money): a fresh-context review and Codex, plan and code reviewed separately. A round with no new blocker or major ends the review; normally at most two plan and two code rounds run (more needs the owner's OK), after which only the fixed parts are re-checked. Codex's verdicts are `READY`, `READY AFTER FIXES` and `NOT READY`. A pull request now mutates only the files it changes; the full mutation run is weekly in CI, and runs before a release when calculation, rounding or import and export rules or formats change.
+- **Owner acceptance** before merge; production deploys only from the public repository's `release` branch, fast-forwarded to the checked commit after the release gate (G3) and the owner's explicit OK.
 
 ## Stages
 
@@ -27,7 +29,14 @@ How each stage of Deal Ops Toolkit was reviewed before it was accepted, written 
 | M6 withdrawal before closing, changing who pays a fee (v1.2.0) | 10 | READY AFTER FIXES ×9, READY | 2 (in parallel, half the checklist each) |
 | Generic wording of the chase message (v1.2.1) | 1 | READY AFTER FIXES | 1 |
 | Phone-width copy box and withdraw form (v1.2.2) | 2 | READY AFTER FIXES, READY | 1 |
-| **Total** | **45** | | |
+| Renaming to Goten (v1.2.3) | — (copy only) | — | — (self-check by the working session only) |
+| Feedback form link instead of an email address (v1.2.4) | — (link and copy only) | — | 1 |
+| User guide (with v1.2.5) | 1 | NOT READY (fixes applied; no second round under the risk rules) | 1 |
+| Confirmations before loading the sample or importing an investor list (v1.2.5) | 1 | READY | 1 |
+| Out-of-date pages, held-back figures and reminders: plan (v1.3.0) | 1 | READY AFTER FIXES | 1 |
+| Same: code (v1.3.0) | 2 | READY AFTER FIXES ×2 (the planned two rounds were reached; the last fix was not reviewed again) | 1 |
+| Phone layout: tour end card, theme choice, waterfall reasons (v1.3.1) | — (layout only) | — | 1 |
+| **Total** | **50** | | |
 
 One further M4 Codex run stopped at the review service's usage limit without output. It is not counted; the review was run again. In M5, while Codex was at its usage limit, a fresh-context reviewer agent ran round 5 as a stopgap; Codex then re-ran round 5 and only that run is counted.
 
@@ -55,6 +64,12 @@ One further M4 Codex run stopped at the review service's usage limit without out
 
 **M6 withdrawal before closing, changing who pays a fee (10 rounds).** The major findings were of one kind: a consent, adjustment, withdrawal mark or refund staying attached after the person or fee it was given for had changed — for example a ticked consent carrying over to a different person imported under the same ID, or a settings re-check skipping an investor who was withdrawn and reinstated. The early self-test did not look for that kind on purpose, so Codex found them one by one; in round 6 every path of the kind was fixed at its cause (duplicate IDs void, the same checks run when a save is loaded, and a second check at calculation time). Round 10 returned READY. While building, the owner made decision 12: the deal currency is locked while a fee payer change is active. Every finding has a test and a mutant.
 
+**User guide and confirmations, v1.2.5.** The fresh reviewer found 1 blocker, 3 major and 5 minor issues in the first user guide and Codex 1 blocker, 2 major and 1 minor; all were checked against the code and fixed. Two of them were product issues: loading the sample deal replaced a person's data without a warning, and a re-import could void decisions already made. Both became confirmations in v1.2.5; the reviewer found one major issue there (an earlier import warning stayed after a new attempt), which was fixed, and one minor one that was left as is; Codex returned READY.
+
+**Out-of-date pages, v1.3.0.** After a fee payer change and before the allocation was handed on again, the allocation page mixed the new fee table with the old investor amounts. The fix hides figures until the hand-off; a page that is out of date cannot be copied, exported or handed on, and the tour cannot carry old figures or skip a pending edit. The independent oracle was updated from the new requirement wording by a separate agent. Known limits kept: a copy that is in progress for a few milliseconds while a value changes and changes back may show the old message; a blocked "Do this for me" does not say why; an investor list imported directly does not mark the allocation as out of date.
+
+**Phone layout, v1.3.1.** From the owner's phone screenshots. The reviewer found only minor issues (focus after rotating the phone, printing the theme choice, Esc, the screen's safe area, test gaps, docs); six were fixed.
+
 ## Counts at release
 
 From the release commit on 2026-10-20: 271 unit tests pass; all 143 test-plan cases due at release ran and passed (the other 5 IDs were removed in PRD v0.7); 22 end-to-end tests pass, covering all 9 planned end-to-end cases; 107 of 107 deliberate breakages are caught; the Python oracle passes its own 139 checks and agrees with the app field by field on the hand-calculated cases and on 1,100 generated cases.
@@ -68,3 +83,9 @@ From `main` on 2026-10-27, released as v1.2.0: 420 unit tests pass; all 199 test
 From `main` on 2026-10-28, released as v1.2.1: the same counts, with 267 of 267 deliberate breakages caught (two added for the new wording).
 
 Released as v1.2.2 on 2026-10-28: 32 end-to-end tests (a new one at phone width); the deliberate breakages of the changed files 18 of 18 caught; the full run was skipped at the owner's choice, as no calculation code changed.
+
+Released as v1.2.3 on 2026-11-04 and v1.2.4 on 2026-11-07: 420 unit tests; all 199 test-plan cases due ran and passed; 32 end-to-end tests; 267 of 267 deliberate breakages caught; the oracle's self-check passes 178 of 178.
+
+Released as v1.2.5 on 2026-11-09: 445 unit tests; all 205 cases due ran and passed; 33 end-to-end tests; the deliberate breakages of the changed files 167 of 167 caught.
+
+Released as v1.3.0 and v1.3.1 on 2026-11-10: 464 unit tests; all 210 cases due ran and passed; 33 and then 37 end-to-end tests; the deliberate breakages of the changed files all caught (two that survived at first were given tests); the oracle's self-check passes 180 of 180.
