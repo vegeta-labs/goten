@@ -8,7 +8,7 @@ Goten is the deal calculations module of Vegeta, software for SPV and syndicate 
 
 Every figure is checked automatically, and the exit waterfall is explained step by step. Around these steps: chase and payment-query texts you copy and send yourself, an activity log of every decision, withdrawal before closing, and changing who pays a percentage fee before closing (recorded as a reversible adjustment). Deal data is processed and saved in your browser; the app sends none of it anywhere.
 
-**Live:** https://deal-ops-toolkit.vercel.app (release `v1.2.4`)
+**Live:** https://deal-ops-toolkit.vercel.app (release `v1.3.1`)
 
 **Website:** https://vegeta-ops.vercel.app/toolkit/ (source: https://github.com/vegeta-labs/vegeta-site)
 
@@ -28,7 +28,7 @@ Every figure is checked automatically, and the exit waterfall is explained step 
 - **Every planned test runs.** `npm run coverage:check` fails unless every test-plan case due at the current milestone ran and passed.
 - **Mutation testing.** `npm run mutation` deliberately breaks the code in 267 places; each one must be caught by a test.
 
-Counts at release v1.2.2 (2026-10-28): 420 unit tests, 199 of 199 due test-plan cases, 32 end-to-end tests covering 11 of 11 planned end-to-end cases, 267 of 267 mutants caught.
+Counts at release v1.3.1 (2026-11-10): 464 unit tests, 210 of 210 due test-plan cases, 37 end-to-end tests covering 12 of 12 planned end-to-end cases, 36 of 36 mutants in the changed files caught (the full mutation run is weekly).
 
 ## How it was built
 
