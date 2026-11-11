@@ -1,8 +1,8 @@
-English snapshot of docs/04_TEST_PLAN.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, for v1.1.1 on 2026-10-23 and for the v0.8 documents on 2026-10-25.
+English snapshot of docs/04_TEST_PLAN.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, for v1.1.1 on 2026-10-23 and for the v0.8 documents on 2026-10-25. Kept in step with the Chinese source up to release v1.3.1 (checked on 2026-11-11).
 
 The scripts that check test coverage read the Chinese file; this English file is for reading.
 
-# Deal Ops Toolkit — Test Plan
+# Goten — Deal Calculations — Test Plan
 
 Version v0.8 (last revised 2026-10-25; based on PRD v0.8, passed 3 rounds of Codex review, approved by the owner 2026-10-25) · 2026-10-17 · Status: **Approved (2026-10-17)** · Based on: PRD v0.7
 

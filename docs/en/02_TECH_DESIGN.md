@@ -1,6 +1,6 @@
-English snapshot of docs/02_TECH_DESIGN.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, updated for v0.8 on 2026-10-25, hosting updated on 2026-11-03 (rules v0.7.5; no calculation rule changed).
+English snapshot of docs/02_TECH_DESIGN.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, updated for v0.8 on 2026-10-25, hosting updated on 2026-11-03 (rules v0.7.5; no calculation rule changed). Kept in step with the Chinese source up to release v1.3.1 (checked on 2026-11-11).
 
-# Deal Ops Toolkit — Technical design
+# Goten — Deal Calculations — Technical design
 
 Version **v0.8** (drafted 2026-10-23; passed 3 rounds of Codex review; approved by the owner 2026-10-25) · Previous approved version v0.7.1 (2026-10-20) · 2026-10-17 · Based on: `docs/en/01_PRD.md` v0.8 (decision 11)
 
@@ -8,6 +8,7 @@ Version **v0.8** (drafted 2026-10-23; passed 3 rounds of Codex review; approved 
 - v0.2 → v0.3: changed in response to round-two items R2-02 R2-06 R2-10 (result type categories, holding units, running tests by milestone).
 - v0.7 → v0.7.1 (2026-10-20, clarified against the code after release; no rule changed): no floating-point exception for the hurdle (as in PRD C-01), and the matching risk removed; the engine interface written as in `src/lib/outcome.ts`.
 - v0.7.1 → v0.8 (2026-10-23, approved 2026-10-25): new §9 "v0.8 design": data structures, pure-function placement, log writing, storage-full handling, snapshot versions, exports, test hooks (M5 / M6) and risks for chase and query messages, the activity log, withdrawal before closing and fee payer change before closing; one sentence added to each of §1, §2, §5, §7. No existing calculation rule changes.
+- v0.8 hosting clarification (2026-11-03, under rules v0.7.5; no calculation rule changed): the hosting row in §1 and the branch notes in §6 now say production deploys from this public repository's `release`, the development repository has no previews, and the public `release` is protected.
 
 ---
 
@@ -27,7 +28,7 @@ Version **v0.8** (drafted 2026-10-23; passed 3 rounds of Codex review; approved 
 | Tests | Vitest (unit + invariants); independent Python recalculation (standard library `fractions`/`decimal` only); Playwright (added when the first UI path appears, i.e. M2) | See the test plan | Jest |
 | UI unit tests (new dependency in M2) | `@testing-library/react` + `@testing-library/dom` + `jsdom`; test files declare `@vitest-environment jsdom` at the top | User-action cases (TC-IO-20, TC-DEAL-02, TC-ALL-24, TC-X-01/02) run directly in Vitest and count towards the TC coverage check; development dependency only, not shipped in the page | Putting everything in Playwright (slow, and not in the TC coverage report) |
 | End-to-end (new dependency in M2) | `@playwright/test`, Chromium only; runs against the **production build**; `vite preview` reads `vercel.json` and adds the same security response headers, so a CSP violation fails the test; `scripts/check-e2e.mjs` reads the report and checks that every due E2E case ran and passed | Test plan §4 | Cypress |
-| Hosting | Private GitHub development repository + this public repository + Vercel. **Vercel production is bound to this public repository's `release` branch** (since 2026-11-03; Vercel's free plan cannot deploy from a private organization repository, so the development repository has no preview links) | Merging to main does not go live directly; it goes live only when this repository's `release` is fast-forwarded after G3 passes (Codex #20) | main deploys to production automatically |
+| Hosting | Private GitHub development repository + this public repository + Vercel. **Vercel production is bound to this public repository's `release` branch** (since 2026-11-03; Vercel's free plan cannot deploy from a private organization repository, so the development repository has no preview links) | Merging to main does not go live directly; it goes live only when this repository's `release` is fast-forwarded to the matching commit after G3 passes (Codex #20; since 2026-11-03) | main deploys to production automatically |
 | CI | GitHub Actions: type check → lint → unit tests → Python recalculation → build; Playwright added from M2. The coverage check reads the test runner's JSON report and checks that every "due case ID" was **actually run and passed** (not a string search in the source); each case's due milestone is marked in the test plan, and the current milestone is recorded in `docs/milestone.txt` | — | — |
 
 ## 2. Structure

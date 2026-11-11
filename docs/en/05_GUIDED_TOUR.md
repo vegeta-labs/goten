@@ -1,6 +1,6 @@
-English snapshot of docs/05_GUIDED_TOUR.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated for guided tour v0.3 (PRD v0.8) on 2026-10-25.
+English snapshot of docs/05_GUIDED_TOUR.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated for guided tour v0.3 (PRD v0.8) on 2026-10-25. Kept in step with the Chinese source up to release v1.3.1 (checked on 2026-11-11).
 
-# Deal Ops Toolkit — Sample tour (R-X-01) design
+# Goten — Deal Calculations — Sample tour (R-X-01) design
 
 Version v0.3 · 2026-10-23 · Status: **Confirmed by the owner (v0.2: 2026-10-20, "Build v0.2; add a confirmation to Clear all data"; v0.3: 2026-10-23, "as recommended", PRD v0.8 decision 11)** · Based on: PRD v0.7.2 R-X-01 "Load a fictional sample deal in one click; a tour mode highlights and explains the typical problems in the three modules, step by step"; PRD v0.8 R-X-01.2
 

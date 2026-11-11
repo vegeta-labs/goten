@@ -1,6 +1,6 @@
-English snapshot of docs/03_RULES_AND_REVIEW.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated on 2026-11-03.
+English snapshot of docs/03_RULES_AND_REVIEW.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated on 2026-11-03. Kept in step with the Chinese source up to release v1.3.1 (checked on 2026-11-11).
 
-# Deal Ops Toolkit — Product rules, development rules and review process
+# Goten — Deal Calculations — Product rules, development rules and review process
 
 Version v0.7.5 (last revised 2026-11-03) · 2026-10-17 · Status: **Approved (2026-10-17)**; v0.7.1 adds the "progress record" Definition of Done item at the owner's request (a process change; it does not affect requirements or calculation rules)
 
@@ -54,7 +54,7 @@ G0 requirements review → G1 design review → [freeze lifted] → G2 every PR 
 1. Claude writes the draft and self-checks it (do rules contradict each other, is every acceptance point testable, have hand calculations been rechecked).
 2. Codex cross-review (prompts kept in the private development repository).
 3. Claude handles each item and records it in the review record: accepted / not accepted, with reasons.
-4. If any blocker or major is accepted → revise, then ask Codex to review again; repeat until the verdict is READY or READY AFTER FIXES and the fixes are done.
+4. If any blocker or major is accepted → revise, then ask Codex to review again; the number of rounds and when to stop follow the development process rules approved by the owner on 2026-11-09 (kept in the private development repository; summarised in `docs/en/REVIEW_SUMMARY.md`).
 5. Owner sign-off: write "Approved" in the PRD change log, and record the date in the review record.
 
 ### G2 every PR
@@ -75,18 +75,23 @@ In the owner's words: an hour from request to delivery for this is too slow. The
 - **When it applies (all must hold):** no change under `src/lib/` or to any calculation, rounding or money decision; no change to import or export formats; at most about 5 source files changed (tests and docs not counted). Otherwise the full G2 / G3 applies.
 - **G2 step 0 becomes:** rule check and hostile inputs as usual; mutation runs only the mutants in the changed files (`node scripts/mutation-check.mjs --files=<file,file>`), and every new mutant must be caught; the fresh-context review as usual. Once the reviewer's findings are fixed, Codex and the local re-check may run at the same time.
 - **Codex by risk (v0.7.4, owner 2026-10-30):** a Codex round is costly; its value is a second model family's eyes, so it is kept for the changes most likely to go wrong and most costly when they do.
-  - Anything touching calculation, money, rounding, import or export formats, or a milestone feature: as before, self-test gate + Codex until READY / READY AFTER FIXES.
+  - Anything touching calculation, money, rounding, import or export formats, or a milestone feature: as before, self-test gate and Codex; the number of rounds and when to stop follow the development process rules (these changes count as high risk).
   - A G2a small fix that **only changes styles, copy, docs or the website** (no change to the app's behaviour): self-test gate only (fresh-context review, each finding judged and fixed); **no Codex**; the review record says "no Codex under v0.7.4".
   - Unsure which: ask the owner first.
-- **G3 becomes:** all automated tests (including end-to-end); **one full mutation run**; from the manual checklist only the items this change touches, plus M-01 to M-03 as a smoke test; the production smoke test and security headers as usual.
+- **G3 becomes:** all automated tests (including end-to-end); mutation as in the development process rules §5 (only the changed files; the full run is weekly in CI, and before a release when calculation, rounding or import and export rules or formats change); from the manual checklist only the items this change touches, plus M-01 to M-03 as a smoke test; the production smoke test and security headers as usual.
 - **Waiting time:** while mutation, Codex or CI runs, move the next piece of work forward; if CI shows no progress for 3 minutes, find out why and cancel and re-run a stuck job.
 - The PR description says "small-fix track" and which conditions hold.
 
 ### G3 release
 1. Run the **full** manual acceptance checklist and all automated tests on a local production build of `main`.
-2. After the owner confirms, merge `main` into `release` in the private development repository (kept as a record); refresh `main` of this repository, check that its build produces the same files as the development build, then fast-forward this repository's `release` to that commit, and production goes live (Vercel deploys from this repository's `release`, since 2026-11-03).
-3. Run the smoke test on the production address; tag; write release notes (listing only tested features).
-4. After this repository is refreshed, set `toolkit.ref` in the website repository to the new commit and run the website checks; if the app's wording or figures changed, update the website too (the website quotes the app word for word).
+2. After the owner confirms going live (this confirmation also covers pushing this public repository):
+   - Merge `main` into `release` in the private development repository (kept as a record).
+   - Refresh `main` of this repository (`vegeta-labs/goten`) with the usual public-refresh checks (noreply author, identity check); its CI must pass.
+   - In a fresh clone of this repository's `main`, `npm ci && npm run build`: the `dist/` file list and SHA-256 hashes equal the development `release` build, and `vercel.json` is the same.
+   - `git push origin <commit>:release` fast-forwards this repository's `release` to that commit (no `--force`; if it is not a fast-forward, stop and ask the owner), and production goes live. Vercel deploys from this repository's `release` (since 2026-11-03); `release` is protected against force pushes and deletion.
+   - Rollback: promote the previous production deployment in Vercel. Moving `release` back needs the protection lifted and a force push, so ask the owner first.
+3. Run the smoke test on the production address, and check the live `index-*.js` file name equals the development build; tag; write release notes (listing only tested features).
+4. With the public commit refreshed in step 2, set `toolkit.ref` in the website development repository to the new public commit and run the website checks; if the app's wording or figures changed, update the website too (since 2026-11-02 the website has its own repository; it quotes the app word for word).
 
 ### G4 user feedback loop
 1. Record every piece of feedback in `docs/feedback_log.md`: **pseudonyms only** and anonymised content; contact details and original material do not go into the repository.

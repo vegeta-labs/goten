@@ -54,7 +54,7 @@ Deal data stays in the browser (memory and local storage) and is never put in a 
 - [User guide](docs/en/use/README.md): for operations staff
 - [Build and run](docs/en/build/README.md): for technical users
 
-English snapshots of the project documents, taken at release v1.0.0 and updated at v1.1.0, v1.1.1, v1.2.0, v1.2.1 and v1.2.2. The Chinese originals are the source of truth and are kept in the development repository; the Chinese test plan is included because the coverage scripts read it.
+English snapshots of the project documents, taken at release v1.0.0 and kept in step with the Chinese originals up to release v1.3.1. The Chinese originals are the source of truth and are kept in the development repository; the Chinese test plan is included because the coverage scripts read it.
 
 - [Requirements (PRD)](docs/en/01_PRD.md)
 - [Technical design](docs/en/02_TECH_DESIGN.md)
