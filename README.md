@@ -10,7 +10,7 @@ Every figure is checked automatically, and the exit waterfall is explained step 
 
 **Live:** https://vegeta-goten.vercel.app (release `v1.4.0`)
 
-**Website:** https://vegeta-ops.vercel.app/toolkit/ (source: https://github.com/vegeta-labs/vegeta-site)
+**Website:** https://vegeta-ops.vercel.app/goten/ (source: https://github.com/vegeta-labs/vegeta-site)
 
 ## Try it
 
