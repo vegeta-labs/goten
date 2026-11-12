@@ -1,14 +1,16 @@
-English snapshot of docs/03_RULES_AND_REVIEW.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated on 2026-11-03. Kept in step with the Chinese source up to release v1.3.1 (checked on 2026-11-11).
+English snapshot of docs/03_RULES_AND_REVIEW.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated on 2026-11-03. Checked against the Chinese source on 2026-11-12.
 
 # Goten — Deal Calculations — Product rules, development rules and review process
 
-Version v0.7.5 (last revised 2026-11-03) · 2026-10-17 · Status: **Approved (2026-10-17)**; v0.7.1 adds the "progress record" Definition of Done item at the owner's request (a process change; it does not affect requirements or calculation rules)
+Version v0.7.7 (last revised 2026-11-12) · 2026-10-17 · Status: **Approved (2026-10-17)**; v0.7.1 adds the "progress record" Definition of Done item at the owner's request (a process change; it does not affect requirements or calculation rules)
 
 - v0.1 → v0.2: changed in response to Codex review items #19 #20 #22 (you cannot approve your own PR, release timing, anonymised feedback, scope freeze).
 - v0.7.1 → v0.7.2 (2026-10-20, clarification): D2 now says the hurdle is exact too, as in PRD C-01.
 - v0.7.2 → v0.7.3 (2026-10-23, process): adds the G2a small-fix track (owner: "as suggested").
 - v0.7.3 → v0.7.4 (2026-10-30, process): cross-review by risk; a G2a small fix that only changes styles, copy, docs or the website skips Codex (owner: "as suggested").
 - v0.7.4 → v0.7.5 (2026-11-03, process): the private development repository moved into the `deal-ops` organization; Vercel's free plan cannot deploy from a private organization repository, so production now deploys from the `release` branch of this public repository (as the website does); the development repository has no preview links any more, and acceptance uses a local production build (owner: option C).
+- v0.7.5 → v0.7.6 (2026-11-11, process): G3 adds checks before and after each public push; release notes are written in the development repository first and come over with the public push; this public repository is never edited directly (owner: "as suggested").
+- v0.7.6 → v0.7.7 (2026-11-12, process): G3 adds step 5, checking the organization page on release day (owner: "do option C directly").
 
 ---
 
@@ -85,13 +87,18 @@ In the owner's words: an hour from request to delivery for this is too slow. The
 ### G3 release
 1. Run the **full** manual acceptance checklist and all automated tests on a local production build of `main`.
 2. After the owner confirms going live (this confirmation also covers pushing this public repository):
+   - Write the release notes (listing only tested features) in the private development repository first and merge them; they come over with this public push.
    - Merge `main` into `release` in the private development repository (kept as a record).
+   - Before pushing, run the three release checks kept in the private development repository on the copy about to be pushed; if any fails, do not push: a private-content scan (private names from a list kept outside the repositories, e-mail addresses, local paths, private repository names; new commits must have the noreply author and committer), a public-file check (`README.md`, `docs/RELEASE_NOTES.md` and `docs/en/` byte-identical to the development repository, and no development-only file), and a version-label check (the README's live release equals the newest release-notes heading).
    - Refresh `main` of this repository (`vegeta-labs/goten`) with the usual public-refresh checks (noreply author, identity check); its CI must pass.
+   - After pushing, record the path and SHA-256 of every file of this repository, with both commits, in a manifest in the private development repository, merged there on the same day as the public push; its weekly check compares this repository with that manifest (between the push and that merge, or the tag, the weekly check fails).
+   - This public repository is never edited directly: every change, documentation included, is made in the private development repository first and comes over by this step.
    - In a fresh clone of this repository's `main`, `npm ci && npm run build`: the `dist/` file list and SHA-256 hashes equal the development `release` build, and `vercel.json` is the same.
    - `git push origin <commit>:release` fast-forwards this repository's `release` to that commit (no `--force`; if it is not a fast-forward, stop and ask the owner), and production goes live. Vercel deploys from this repository's `release` (since 2026-11-03); `release` is protected against force pushes and deletion.
    - Rollback: promote the previous production deployment in Vercel. Moving `release` back needs the protection lifted and a force push, so ask the owner first.
-3. Run the smoke test on the production address, and check the live `index-*.js` file name equals the development build; tag; write release notes (listing only tested features).
+3. Run the smoke test on the production address, and check the live `index-*.js` file name equals the development build; tag (the version of the newest release-notes heading, on the same day as the public push), then run the tag check kept in the private development repository on a checkout of this repository (the newest tag equals the newest release-notes heading); if it fails, fix it before the release counts as done; if the release notes need a change after the smoke test, change them in the private development repository first and push one more documentation commit by step 2.
 4. With the public commit refreshed in step 2, set `toolkit.ref` in the website development repository to the new public commit and run the website checks; if the app's wording or figures changed, update the website too (since 2026-11-02 the website has its own repository; it quotes the app word for word).
+5. On release day, look at the organization page https://github.com/vegeta-labs: the version numbers are synced by the daily Sync release versions workflow in `vegeta-labs/.github` (it can be run by hand from its Actions page instead of waiting a day); if the product description (the What it does column of `profile/README.md`) no longer matches this release, open a PR on `vegeta-labs/.github`; the push needs the owner's OK.
 
 ### G4 user feedback loop
 1. Record every piece of feedback in `docs/feedback_log.md`: **pseudonyms only** and anonymised content; contact details and original material do not go into the repository.
@@ -108,9 +115,9 @@ Before a PR merges it must meet the following (for items that do not apply, say 
 - [ ] Codex review comments handled and recorded (or, for a G2a fix that skips Codex, the reason stated)
 - [ ] The owner has accepted the checklist items this PR touches on a local production build, and commented Accepted
 - [ ] Docs updated to match
-- [ ] This stage's section in the progress record (`docs/PROGRESS.md`; English snapshot `docs/en/PROGRESS.md`) updated (goal / what was done / how it was verified / reviews / decisions / open items / links), and synced to the shared Google Doc
+- [ ] This stage's section in the progress record (`docs/PROGRESS.md`, kept in the private development repository) updated (goal / what was done / how it was verified / reviews / decisions / open items / links), and synced to the shared Google Doc
 
 ## 5. Review records
-`docs/PROGRESS.md` (English snapshot `docs/en/PROGRESS.md`) is the progress record for the team (one section per stage, fixed template, can be shared externally as is); below is the process record for reviews.
+`docs/PROGRESS.md` (kept in the private development repository; `docs/en/PROGRESS.md` only points to it) is the progress record for the team (one section per stage, fixed template, can be shared externally as is); below is the process record for reviews.
 
 One file per review, with Codex's raw output saved separately; kept in the private development repository; summarised in `docs/en/REVIEW_SUMMARY.md`.

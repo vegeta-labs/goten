@@ -1,4 +1,4 @@
-English snapshot of docs/02_TECH_DESIGN.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, updated for v0.8 on 2026-10-25, hosting updated on 2026-11-03 (rules v0.7.5; no calculation rule changed). Kept in step with the Chinese source up to release v1.3.1 (checked on 2026-11-11).
+English snapshot of docs/02_TECH_DESIGN.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, updated for v0.8 on 2026-10-25, hosting updated on 2026-11-03 (rules v0.7.5; no calculation rule changed). Checked against the Chinese source on 2026-11-11.
 
 # Goten — Deal Calculations — Technical design
 

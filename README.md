@@ -8,7 +8,7 @@ Goten is the deal calculations module of Vegeta, software for SPV and syndicate 
 
 Every figure is checked automatically, and the exit waterfall is explained step by step. Around these steps: chase and payment-query texts you copy and send yourself, an activity log of every decision, withdrawal before closing, and changing who pays a percentage fee before closing (recorded as a reversible adjustment). Deal data is processed and saved in your browser; the app sends none of it anywhere.
 
-**Live:** https://deal-ops-toolkit.vercel.app (release `v1.3.1`)
+**Live:** https://vegeta-goten.vercel.app (release `v1.3.1`)
 
 **Website:** https://vegeta-ops.vercel.app/toolkit/ (source: https://github.com/vegeta-labs/vegeta-site)
 
@@ -24,11 +24,11 @@ Every figure is checked automatically, and the exit waterfall is explained step 
 
 - **Exact maths.** Money is whole pence, rates are basis points and share prices are millionths. Every money calculation, including the compounding hurdle, uses exact integer arithmetic.
 - **Self-checks on every calculation**, shown next to each result (for example, cash received = invested + fees + refunds for every investor). A failed blocker stops copying, exporting and the hand-off to the next step.
-- **An independent oracle.** A separate Python implementation (`scripts/oracle/`), written from the written rules only, agrees with the app field by field on the hand-calculated cases and on 1,800 generated cases. It also passes its own 178 checks.
+- **An independent oracle.** A separate Python implementation (`scripts/oracle/`), written from the written rules only, agrees with the app field by field on the hand-calculated cases and on generated cases. It also passes its own checks.
 - **Every planned test runs.** `npm run coverage:check` fails unless every test-plan case due at the current milestone ran and passed.
-- **Mutation testing.** `npm run mutation` deliberately breaks the code in 267 places; each one must be caught by a test.
+- **Mutation testing.** `npm run mutation` deliberately breaks the code in many places; each one must be caught by a test.
 
-Counts at release v1.3.1 (2026-11-10): 464 unit tests, 210 of 210 due test-plan cases, 37 end-to-end tests covering 12 of 12 planned end-to-end cases, 36 of 36 mutants in the changed files caught (the full mutation run is weekly).
+The test results of each release are in the [release notes](docs/RELEASE_NOTES.md).
 
 ## How it was built
 
@@ -54,7 +54,7 @@ Deal data stays in the browser (memory and local storage) and is never put in a 
 - [User guide](docs/en/use/README.md): for operations staff
 - [Build and run](docs/en/build/README.md): for technical users
 
-English snapshots of the project documents, taken at release v1.0.0 and kept in step with the Chinese originals up to release v1.3.1. The Chinese originals are the source of truth and are kept in the development repository; the Chinese test plan is included because the coverage scripts read it.
+English snapshots of the project documents, taken at release v1.0.0 and checked against the Chinese originals whenever those change. The Chinese originals are the source of truth and are kept in the development repository; the Chinese test plan is included because the coverage scripts read it.
 
 - [Requirements (PRD)](docs/en/01_PRD.md)
 - [Technical design](docs/en/02_TECH_DESIGN.md)

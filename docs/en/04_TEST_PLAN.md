@@ -1,4 +1,4 @@
-English snapshot of docs/04_TEST_PLAN.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, for v1.1.1 on 2026-10-23 and for the v0.8 documents on 2026-10-25. Kept in step with the Chinese source up to release v1.3.1 (checked on 2026-11-11).
+English snapshot of docs/04_TEST_PLAN.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, for v1.1.1 on 2026-10-23 and for the v0.8 documents on 2026-10-25. Checked against the Chinese source on 2026-11-11.
 
 The scripts that check test coverage read the Chinese file; this English file is for reading.
 

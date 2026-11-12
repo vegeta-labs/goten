@@ -1,4 +1,4 @@
-English snapshot of docs/01_PRD.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, for v1.1.1 on 2026-10-23, for PRD v0.8 on 2026-10-25, for v0.8.2 on 2026-10-27 and for v0.8.3 on 2026-10-29. Kept in step with the Chinese source up to release v1.3.1 (checked on 2026-11-11).
+English snapshot of docs/01_PRD.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, for v1.1.1 on 2026-10-23, for PRD v0.8 on 2026-10-25, for v0.8.2 on 2026-10-27 and for v0.8.3 on 2026-10-29. Checked against the Chinese source on 2026-11-11.
 
 # Goten — Deal Calculations — Product Requirements Document (PRD)
 

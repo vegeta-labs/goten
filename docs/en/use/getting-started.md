@@ -4,7 +4,7 @@ Go through all three steps with the built-in Northwind Robotics seed round. It h
 
 ## What you need
 
-- A modern browser. The hosted copy is at https://deal-ops-toolkit.vercel.app.
+- A modern browser. The hosted copy is at https://vegeta-goten.vercel.app.
 - Nothing else. The sample needs no files.
 
 Loading the sample replaces whatever is on the page and clears the activity log. If there is anything to lose, Goten asks first: click **Replace with sample** to go ahead or **Cancel** to stop. This cannot be undone, so [export what you need](exports-and-records.md) first.
