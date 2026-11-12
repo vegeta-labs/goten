@@ -1,7 +1,7 @@
 // Where the guided tour was left, saved as an interface preference — never with the deal data (docs/en/05_GUIDED_TOUR.md §4).
 // `demoFrom` records that the step-10 cap on screen was set by the tour, and the cap it replaced, so the right value is
 // still put back after a reload (review M3 #2, Codex M3 R1 #2).
-export const TOUR_KEY = 'deal-ops-toolkit:tour'
+export const TOUR_KEY = 'goten:tour'
 
 export interface TourProgress {
   step: number

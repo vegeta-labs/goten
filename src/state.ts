@@ -44,7 +44,7 @@ import type { Holding } from './lib/waterfall'
 import { plainPrice } from './lib/exports'
 import type { AllocationInvestor } from './lib/allocation'
 
-export const STORAGE_KEY = 'deal-ops-toolkit:v1'
+export const STORAGE_KEY = 'goten:v1'
 export const SCHEMA = 2
 
 export interface DealText {

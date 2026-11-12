@@ -2,13 +2,21 @@
 
 Rule P9: only what is implemented, tested and deployed is listed. Each line names the requirement and the tests that cover it.
 
-## v1.3.1 — 2026-11-10
+## v1.4.0 (2026-11-12): Saved data now uses the Goten name, so data saved by earlier versions is not carried over
+
+The last identifiers that carried the product's earlier name now say Goten. The browser storage keys are `goten:v1` (the deal and its activity log), `goten:theme` and `goten:tour`, and the package name is `goten` (Technical design §1, §9.1; R-X-02, R-X-04; the key tests in `src/state.test.ts` and `src/theme.test.ts`, E2E-04). **Data saved by an earlier version is not carried over:** a browser that used v1.3.1 or earlier at this address opens with an empty deal, the theme following the device and the tour at its start; entries under the earlier keys are not read and stay in the browser's storage until its site data is cleared. (The app's address also changed on 2026-11-12, and a browser keeps saved data per address.) There is no migration because the tool has had no users to migrate. Document titles, code comments and the oracle's description use the current name; records of releases up to v1.2.2 keep the name they were released under.
+
+Calculations, rounding, import and export formats and the saved-data schema (version 2) are unchanged.
+
+Checked on the release branch on 2026-11-12: 466 unit tests pass; all 210 test-plan cases due at M6 ran and passed; 12 of 12 end-to-end cases (37 tests); 301 of 301 deliberate code breakages caught (the full run, made in three parts on 2026-11-12; three were added for the renamed keys); the Python oracle's self-check 180 of 180, and the TypeScript engines agree with it on 1,800 generated cases.
+
+## v1.3.1 (2026-11-10): Tour end card, theme switch and exit waterfall steps fit a phone screen
 
 Phone-width fixes from a real-phone check. The guided tour's end card now shows **Keep exploring the sample**, **Clear and start my own deal** and **Replay tour** under its title without scrolling, folds to one line (**Tour finished · Show**), closes with Esc, and leaves room for a browser toolbar at the bottom of the screen (05_GUIDED_TOUR §4; E2E-05). At 600px and narrower, the System / Light / Dark choice moves to the foot of the page with 44px buttons, the breadcrumb is hidden, and **Load sample deal** sits with the tour and clear buttons; wider screens are unchanged (R-X-04; E2E-07). On the exit page, each waterfall step's reason sits under its name on a phone instead of in a cut-off **Why** column (E2E-07). Calculations, import and export formats, and saved data are unchanged.
 
 Counts at release: 464 unit tests, 210 of 210 due test-plan cases, 37 end-to-end tests covering 12 of 12 planned end-to-end cases, 36 of 36 mutants in the changed files caught (the full mutation run is weekly), the Python oracle's self-check 180 of 180.
 
-## v1.3.0 — 2026-11-10
+## v1.3.0 (2026-11-10): Out-of-date pages no longer let you copy or export old figures
 
 Pages marked **out of date** no longer pass on old figures. On the allocation page, **Copy closing confirmation**, **Export allocation CSV** and **Hand off to exit distribution** are disabled until you hand off again, and the page says why; on the exit page, **Export holdings CSV** and **Export distribution CSV** are disabled while the holdings or the allocation behind them are out of date (R-X-07; TC-ALL-50, TC-DIS-32).
 
@@ -18,21 +26,21 @@ Bank lines marked **Not part of this deal** no longer get the "unmatched for N d
 
 Calculations, rounding, import and export formats, and saved data are unchanged.
 
-## v1.2.5 — 2026-11-09
+## v1.2.5 (2026-11-09): Loading the sample deal or importing investors asks before you lose work
 
 Two actions that can lose work now ask first. **Load sample deal** asks before replacing a deal that has anything to lose (R-X-01.3; TC-X-21, TC-X-22, TC-X-23). Importing an investor list says how many confirmed decisions, withdrawal marks and fee payer adjustments it would void, and offers **Import anyway** or **Cancel** (R-REC-01.3; TC-REC-56, TC-REC-57). Calculations, import and export formats, and saved data are unchanged.
 
-## v1.2.4 — 2026-11-07
+## v1.2.4 (2026-11-07): Send feedback through a form instead of email
 
 The footer's feedback link now opens a feedback form in a new tab, and the app no longer shows an email address (R-X-06; TC-X-02, E2E-06). Calculations, import and export formats, and saved data are unchanged.
 
-## v1.2.3 — 2026-11-04
+## v1.2.3 (2026-11-04): New name: Goten — Deal Calculations
 
 **Goten — Deal Calculations**, part of Vegeta. The app heading, breadcrumb, browser title and description, feedback email subject (R-X-06), and current product introduction use the confirmed product name. Tests: TC-X-02 and P6 branding/breadcrumb checks; existing end-to-end persistence, privacy, reconciliation, allocation and distribution cases.
 
 The application address, package name, saved-data keys, schemas, import/export formats and calculations are unchanged. Existing browser data, theme and tour progress remain readable. Historical release records retain their original product names.
 
-## v1.2.2 — released 2026-10-28
+## v1.2.2 (2026-10-28): The message text box and the withdraw form fit a phone screen
 
 Live at https://deal-ops-toolkit.vercel.app (build `index-tN1Qq31h.js`). The tag `v1.2.2` and the release commit `b5bf8f1` are in the private development repository. Production smoke test on 2026-10-28: the sample deal's figures match Test Plan §3; at phone width the copy box and the withdraw form open wholly on screen; 12 requests, all same-origin GETs without bodies or query strings; no console errors; the security headers match `vercel.json` (Tech Design §4).
 
@@ -43,7 +51,7 @@ A small fix for phone-width screens (PR #34 in the private development repositor
 - The withdraw form fits the screen and appears at once, with the consent box ready to tick; before, it was wider than a phone screen and scrolled into place over about half a second.
 - Test: E2E-09 (375px).
 
-## v1.2.1 — released 2026-10-28
+## v1.2.1 (2026-10-28): Reworded chase message for investors who have already paid
 
 Live at https://deal-ops-toolkit.vercel.app (build `index-bxRVcwES.js`). The tag `v1.2.1` and the release commit `e19b640` are in the private development repository. Production smoke test on 2026-10-28: the sample deal's figures match Test Plan §3; the copied chase message carries the new wording word for word; withdrawing an investor and changing then reversing who pays the platform fee work as before; 12 requests, all same-origin GETs without bodies or query strings; no console errors; the security headers match `vercel.json` (Tech Design §4).
 
@@ -53,7 +61,7 @@ A wording change (PRD v0.8.2; PR #32 in the private development repository). No 
 - The paragraph for investors who have already paid now reads: "If you have already sent this payment, please ask your bank for the MT103 (or equivalent) for the transfer, showing its UETR, and send it to us so we can trace the payment." The Reconciliation hint says the message asks anyone who has already paid to send the bank's MT103 / UETR.
 - Tests: TC-REC-42, TC-REC-43, TC-X-14, E2E-08.
 
-## v1.2.0 — released 2026-10-27
+## v1.2.0 (2026-10-27): Chase messages, an activity log, withdrawals and fee payer changes
 
 Live at https://deal-ops-toolkit.vercel.app (build `index-fWQP9R2X.js`). The tag `v1.2.0` and the release commit `69f211a` are in the private development repository. Production smoke test on 2026-10-27: the sample deal's figures match Test Plan §3 (reconciliation, allocation and exit); copying a chase message, withdrawing an investor and changing then reversing who pays the platform fee work as checked before release; 12 requests, all same-origin GETs without bodies or query strings; no console errors; the security headers match `vercel.json` (Tech Design §4).
 
@@ -83,7 +91,7 @@ M5 and M6 (PRD v0.8 and v0.8.1; PRs #24 and #27 in the private development repos
 
 **Saved data:** this version saves in a new format (schema 2) and reads saves from v1.1.x. Earlier versions cannot read the new format: going back to v1.1.x would start from an empty page (Tech Design §9.7).
 
-## v1.1.1 — released 2026-10-23
+## v1.1.1 (2026-10-23): The page tells you when your changes are not being saved
 
 Live at https://deal-ops-toolkit.vercel.app (build `index-CZaWFdNy.js`). The tag `v1.1.1` and the release commit `8734580` are in the private development repository. Production smoke test on 2026-10-23: the sample deal's figures match Test Plan §3 (reconciliation, allocation and exit); the save-status region is present and empty while saving works; 7 requests, all same-origin GETs without bodies or query strings; no console errors; the security headers read from the production URL match `vercel.json` (Tech Design §4).
 
@@ -94,7 +102,7 @@ A fix found while preparing the next version (PR #18 in the private development 
 - When the browser refuses storage altogether (for example when site data is blocked), the page now says "storage is blocked". Before, it said nothing, so the data looked saved but was gone when the page closed.
 - The message is announced by screen readers.
 
-## v1.1.0 — released 2026-10-21
+## v1.1.0 (2026-10-21): Deal currency on every amount, and a light or dark theme
 
 Live at https://deal-ops-toolkit.vercel.app (build `index-DLntVfU4.js`). The tag `v1.1.0` and the release commit `d588b56` are in the private development repository. Production smoke test on 2026-10-21: the sample deal's figures match Test Plan §3 and the confirmation names `Currency: GBP`; a Dark choice survives a reload; 12 requests, all same-origin GETs without bodies or query strings; no console errors; the security headers match Tech Design §4.
 
@@ -112,7 +120,7 @@ Changes since v1.0.0 after the owner's review of the live site (PR #11 in the pr
 - Glossary explanations open under their "?" without splitting the sentence, close with Esc, a click elsewhere or moving focus away, and stay inside the window on a phone (TC-X-01, E2E-01b).
 - The "Clear all data" confirmation fits the sidebar and takes keyboard focus (E2E-04); one arrow style for every select, with the native arrow in high-contrast mode; fee placeholders that do not look like values; fields in a row line up.
 
-## v1.0.0 — released 2026-10-20
+## v1.0.0 (2026-10-20): First release: reconciliation, closing allocation and exit distribution
 
 Live at https://deal-ops-toolkit.vercel.app (build `index-Dav9BeIm.js`). The tag `v1.0.0` and the release commit `d54c903` are in the private development repository; the public repository is a snapshot of that release. Checked on the release commit on 2026-10-20: 271 unit tests pass; all 143 test-plan cases due at M4 ran and passed (the other 5 IDs were removed in PRD v0.7); 9 of 9 end-to-end cases (22 tests); 107 of 107 deliberate code breakages caught by the tests; the Python oracle's self-check 139 of 139. Production smoke test: the sample deal's figures match Test Plan §3, only same-origin static files are requested, and the security headers match Tech Design §4.
 

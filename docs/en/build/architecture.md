@@ -71,7 +71,7 @@ The investor list is never rewritten by a withdrawal or a fee payer change. Each
 
 ## Persistence
 
-`saveState` in `state.ts` writes the whole state as JSON to `localStorage` under `deal-ops-toolkit:v1`, with a schema version; the current schema is 2, and `parseSaved` shape-checks everything it reads. When storage is full, the oldest activity log entries are dropped first so the deal data is kept, and the page says so. If storage is blocked or full, the page says that too.
+`saveState` in `state.ts` writes the whole state as JSON to `localStorage` under `goten:v1`, with a schema version; the current schema is 2, and `parseSaved` shape-checks everything it reads. When storage is full, the oldest activity log entries are dropped first so the deal data is kept, and the page says so. If storage is blocked or full, the page says that too.
 
 ## Guided tour
 

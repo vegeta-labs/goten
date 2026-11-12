@@ -1,6 +1,6 @@
 // R-X-04 (PRD v0.7.4, decision 9): System / Light / Dark. Only an explicit choice is stored; System stores nothing.
 export type Theme = 'system' | 'light' | 'dark'
-export const THEME_KEY = 'deal-ops-toolkit:theme'
+export const THEME_KEY = 'goten:theme'
 
 export function loadTheme(storage: Storage | undefined): Theme {
   try {

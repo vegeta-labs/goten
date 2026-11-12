@@ -49,7 +49,7 @@ Your copy has its own saved data, separate from any other copy, because browser 
 ## Before you use it for real deals
 
 - The footer's **Send feedback** link goes to the form set in `FEEDBACK_FORM_URL` in `src/config.ts`. Point it at your own form.
-- The storage keys, `deal-ops-toolkit:v1` and its siblings, keep their names so existing saved data remains readable. Leave them unless you are also migrating the data.
+- The storage keys are `goten:v1`, `goten:theme` and `goten:tour` (`src/state.ts`, `src/theme.ts`, `src/tour/progress.ts`). If you rename them, data saved under the old names is no longer read unless you also migrate it.
 - Check that the disclaimer and privacy text in `src/config.ts` still hold for your deployment.
 - Consider who hosts it. The host receives normal page requests but no deal data.
 

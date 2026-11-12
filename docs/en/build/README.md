@@ -13,7 +13,7 @@ For how operations staff use the app, see [Use Goten](../use/README.md).
 
 The app has no backend and no account. Confirmed in the code:
 
-- Deal state lives in a React reducer (`src/state.ts`) and is saved to the browser's `localStorage` under the key `deal-ops-toolkit:v1`, as JSON with a schema version. The theme and tour progress are kept apart under `deal-ops-toolkit:theme` and `deal-ops-toolkit:tour`.
+- Deal state lives in a React reducer (`src/state.ts`) and is saved to the browser's `localStorage` under the key `goten:v1`, as JSON with a schema version. The theme and tour progress are kept apart under `goten:theme` and `goten:tour`.
 - Nothing is sent over the network. The content security policy in `vercel.json` sets `connect-src 'none'`, and an end-to-end test records every request.
 - Files are read locally with the File API. Exports are downloaded through a `Blob`, and messages are copied through the clipboard.
 

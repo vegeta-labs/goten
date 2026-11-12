@@ -755,6 +755,10 @@ const MUTANTS = [
   ['src/App.tsx', 'if (!tour || !fn || pending) return', 'if (!tour || !fn) return', 'the tour hands on past an edit in progress (C-03)'],
   ['src/tour/script.ts', "${c.alloc ? names.join(', ') || 'Nobody' : MISSING} would fall", "${names.join(', ') || 'Nobody'} would fall", 'tour says nobody is affected when the figures are held back'],
   ['src/lib/adjust.ts', '— any problems are listed here', '— check the preview', 'reminder points at a preview that is not shown'],
+  // v1.4.0: the three browser storage keys were renamed with no migration; each literal is pinned by a test
+  ['src/state.ts', "export const STORAGE_KEY = 'goten:v1'", "export const STORAGE_KEY = 'deal-ops-toolkit:v1'", 'deal saved under the earlier key'],
+  ['src/theme.ts', "export const THEME_KEY = 'goten:theme'", "export const THEME_KEY = 'deal-ops-toolkit:theme'", 'theme stored under the earlier key'],
+  ['src/tour/progress.ts', "export const TOUR_KEY = 'goten:tour'", "export const TOUR_KEY = 'deal-ops-toolkit:tour'", 'tour progress stored under the earlier key'],
 ]
 
 // Small-fix track (Rules G2 step 0): `--files a.ts,b.tsx` runs only the mutants in those files; the full run is due before release (G3)

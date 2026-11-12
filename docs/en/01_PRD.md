@@ -1,8 +1,9 @@
-English snapshot of docs/01_PRD.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, for v1.1.1 on 2026-10-23, for PRD v0.8 on 2026-10-25, for v0.8.2 on 2026-10-27 and for v0.8.3 on 2026-10-29. Checked against the Chinese source on 2026-11-11.
+English snapshot of docs/01_PRD.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, for v1.1.1 on 2026-10-23, for PRD v0.8 on 2026-10-25, for v0.8.2 on 2026-10-27 and for v0.8.3 on 2026-10-29. Checked against the Chinese source on 2026-11-12.
 
 # Goten — Deal Calculations — Product Requirements Document (PRD)
 
 Version **v0.8** (**approved 2026-10-25**; scope and the 3 recommendations approved 2026-10-23, the full text approved by the owner on 2026-10-25 after the document review) · previous approved version v0.7.6 (2026-10-23) · 2026-10-17 · Status: v0.7.6 **approved (2026-10-17)**, G0/G1 gates passed
+v0.8.10 (2026-11-12, owner decision): decision 1 states the current product name, Goten — Deal Calculations; the browser storage keys are renamed and data under the earlier keys is not migrated (Technical design §1); no requirement, calculation rule or import or export format of this tool changes.
 v0.8.9 (2026-11-09, owner agreed the fixes): R-X-07, R-ALL-12.3, C-ALL-11: a page that is out of date cannot copy, export or hand on; between a fee payer change and the next hand-off no mixed figures are shown; R-REC-06, C-REC-5: lines marked not part of this deal no longer get the reminder. Money calculation, rounding and import and export formats do not change.
 v0.8.8 (2026-11-09, owner approved): R-REC-01.3 and R-X-01.3 added: the two actions that can lose data ask first; no calculation rule or import or export format of this tool changes.
 v0.8.7 (2026-11-07, owner decision): a decision about a module that is not released yet; not published here. No requirement or calculation rule of this tool changes.
@@ -404,7 +405,7 @@ v0.8 export changes (import formats unchanged; withdrawal marks and the activity
 
 | # | Question | Decision | Date |
 |---|---|---|---|
-| 1 | Product name | Deal Ops Toolkit | 2026-10-16 |
+| 1 | Product name | ~~Deal Ops Toolkit~~ (2026-10-16) → **Goten — Deal Calculations**, part of Vegeta (confirmed by the owner 2026-11-04). Release records up to v1.2.2 keep the original name | 2026-10-16, 2026-11-04 |
 | 2 | Feedback channel | Feedback form link only (replaced the email link on 2026-11-07, so the page shows no personal address), with a note not to send real investor information | 2026-10-16, 2026-11-07 |
 | 3 | Analytics | None in v1 | 2026-10-16 |
 | 4 | How to describe the product | Call it a "prototype"; talk only about what is implemented, tested and live; never imply it saved any platform money or meets regulatory requirements | 2026-10-16 |
@@ -424,6 +425,7 @@ v0.8 export changes (import formats unchanged; withdrawal marks and the activity
 ## 9. Change log
 | Date | Version | Change | Approval |
 |---|---|---|---|
+| 2026-11-12 | v0.8.10 | Decision 1 states the current product name. The three browser storage keys are renamed (`goten:v1`, `goten:theme`, `goten:tour`) and data under the earlier keys is not migrated: there are no users yet, so this is the cheapest moment. The package name becomes `goten` as well. No requirement, calculation rule or import or export format changes | **Owner decision** (passed on by the website coordination session on 2026-11-12; confirmed by the owner at acceptance of the pull request) |
 | 2026-11-09 | v0.8.9 | R-X-07: a page that is out of date cannot copy, export or hand on. R-ALL-12.3, C-ALL-11: between a fee payer change and the next hand-off no mixed figures are shown. R-REC-06, C-REC-5: lines marked not part of this deal no longer get the reminder. C-ALL-11 reminder no longer says "check the preview" (there is no preview while a change is active). R-ALL-10: the copy messages show only while they are still true. Money calculation, rounding and import and export formats do not change | **Owner agreed the fixes 2026-11-09; accepted 2026-11-10** |
 | 2026-11-09 | v0.8.8 | R-REC-01.3, R-X-01.3 added: ask first when an investor list import would void anything and when loading the sample would lose data. No calculation rule or import or export format changes | **Owner approved 2026-11-09** |
 | 2026-11-07 | v0.8.7 | A decision about a module that is not released yet (not published here). No requirement or calculation rule of this tool changed | **Owner decision 2026-11-06** |

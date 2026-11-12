@@ -1,6 +1,6 @@
 # Review summary
 
-How each stage of Goten — Deal Calculations (called Deal Ops Toolkit until v1.2.2) was reviewed before it was accepted, written on 2026-10-20 at release v1.0.0, updated on 2026-10-21 at release v1.1.0, on 2026-10-26 for release v1.1.1, on 2026-10-27 for release v1.2.0, on 2026-10-28 for releases v1.2.1 and v1.2.2, and on 2026-11-11 for releases v1.2.3 to v1.3.1. The raw review output and the item-by-item triage notes stay in the private development repository; this summary replaces them in the public one. It is brought up to date at minor releases, not at every patch release.
+How each stage of Goten — Deal Calculations (called Deal Ops Toolkit until v1.2.2) was reviewed before it was accepted, written on 2026-10-20 at release v1.0.0, updated on 2026-10-21 at release v1.1.0, on 2026-10-26 for release v1.1.1, on 2026-10-27 for release v1.2.0, on 2026-10-28 for releases v1.2.1 and v1.2.2, on 2026-11-11 for releases v1.2.3 to v1.3.1, and on 2026-11-12 for v1.4.0. The raw review output and the item-by-item triage notes stay in the private development repository; this summary replaces them in the public one. It is brought up to date at minor releases, not at every patch release.
 
 ## How a review works
 
@@ -36,6 +36,7 @@ How each stage of Goten — Deal Calculations (called Deal Ops Toolkit until v1.
 | Out-of-date pages, held-back figures and reminders: plan (v1.3.0) | 1 | READY AFTER FIXES | 1 |
 | Same: code (v1.3.0) | 2 | READY AFTER FIXES ×2 (the planned two rounds were reached; the last fix was not reviewed again) | 1 |
 | Phone layout: tour end card, theme choice, waterfall reasons (v1.3.1) | — (layout only) | — | 1 |
+| Storage keys and package renamed to Goten (v1.4.0) | — (medium risk: one fresh reviewer, no Codex round) | — | 1 |
 | **Total** | **50** | | |
 
 One further M4 Codex run stopped at the review service's usage limit without output. It is not counted; the review was run again. In M5, while Codex was at its usage limit, a fresh-context reviewer agent ran round 5 as a stopgap; Codex then re-ran round 5 and only that run is counted.
@@ -89,3 +90,5 @@ Released as v1.2.3 on 2026-11-04 and v1.2.4 on 2026-11-07: 420 unit tests; all 1
 Released as v1.2.5 on 2026-11-09: 445 unit tests; all 205 cases due ran and passed; 33 end-to-end tests; the deliberate breakages of the changed files 167 of 167 caught.
 
 Released as v1.3.0 and v1.3.1 on 2026-11-10: 464 unit tests; all 210 cases due ran and passed; 33 and then 37 end-to-end tests; the deliberate breakages of the changed files all caught (two that survived at first were given tests); the oracle's self-check passes 180 of 180.
+
+Checked on 2026-11-12 for v1.4.0: 466 unit tests; all 210 cases due ran and passed; 37 end-to-end tests covering all 12 planned end-to-end cases; 301 of 301 deliberate breakages caught (the full run; three added for the renamed keys); the oracle's self-check passes 180 of 180 and it agrees with the app on the hand-calculated cases and on 1,800 generated cases.

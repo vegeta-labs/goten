@@ -18,6 +18,14 @@ describe('theme storage', () => {
     expect(loadTheme(undefined)).toBe('system')
   })
 
+  it('R-X-04 the choice is stored under goten:theme; a choice left under the earlier key is not read (v1.4.0, no migration)', () => {
+    const m = new Map<string, string>()
+    saveTheme({ setItem: (k: string, v: string) => m.set(k, v) } as unknown as Storage, 'dark')
+    expect([...m.keys()]).toEqual(['goten:theme'])
+    const old = new Map([['deal-ops-toolkit:theme', 'dark']])
+    expect(loadTheme({ getItem: (k: string) => old.get(k) ?? null } as unknown as Storage)).toBe('system')
+  })
+
   it('TC-X-03 blocked storage: reading gives System and saving does not throw', () => {
     expect(loadTheme(throwing)).toBe('system')
     expect(() => saveTheme(throwing, 'dark')).not.toThrow()

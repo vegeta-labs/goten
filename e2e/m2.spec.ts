@@ -162,7 +162,7 @@ test('E2E-04 data survives a reload; "Clear all data" wipes it', async ({ page }
   await expect(page.getByTestId('deal-name')).toHaveText('New deal')
   await expect(page.locator('body')).not.toContainText('Zara Quinn')
   await expect(page.locator('body')).not.toContainText('Amelia')
-  expect(await page.evaluate(() => localStorage.getItem('deal-ops-toolkit:v1'))).toBeNull()
+  expect(await page.evaluate(() => localStorage.getItem('goten:v1'))).toBeNull()
   await page.reload()
   await expect(page.getByTestId('deal-name')).toHaveText('New deal')
   await expect(page.getByText(/^Investors \(0\)$/)).toBeVisible()

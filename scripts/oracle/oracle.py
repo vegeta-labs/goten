@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent reference implementation ("oracle") of the Deal Ops Toolkit engines.
+"""Independent reference implementation ("oracle") of the Goten — Deal Calculations engines.
 
 Written from the PRD §5.0-5.4 (v0.8: C-REC-7, C-ALL-10, C-ALL-11; Chinese source of truth, English snapshot in
 docs/en/01_PRD.md), the test plan and scripts/oracle/SCHEMA.md only.

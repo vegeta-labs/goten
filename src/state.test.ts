@@ -386,6 +386,15 @@ describe('local saving (Tech Design §1)', () => {
     expect(loadState(storage)).toEqual(JSON.parse(JSON.stringify(s)))
   })
 
+  it('R-X-02 the deal is saved under goten:v1; data left under the earlier key is not read (v1.4.0, no migration)', () => {
+    const store = new Map<string, string>()
+    const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) }
+    expect(saveState(storage, reviewed()).result).toBe('saved')
+    expect([...store.keys()]).toEqual(['goten:v1'])
+    const old = new Map([['deal-ops-toolkit:v1', store.get('goten:v1')!]])
+    expect(loadState({ getItem: (k: string) => old.get(k) ?? null })).toBeNull()
+  })
+
   it('blocked storage does not break the app', () => {
     const throwing = {
       getItem: () => {

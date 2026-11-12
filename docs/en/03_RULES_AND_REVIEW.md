@@ -2,7 +2,7 @@ English snapshot of docs/03_RULES_AND_REVIEW.md (Chinese, source of truth) at re
 
 # Goten — Deal Calculations — Product rules, development rules and review process
 
-Version v0.7.7 (last revised 2026-11-12) · 2026-10-17 · Status: **Approved (2026-10-17)**; v0.7.1 adds the "progress record" Definition of Done item at the owner's request (a process change; it does not affect requirements or calculation rules)
+Version v0.7.8 (last revised 2026-11-12) · 2026-10-17 · Status: **Approved (2026-10-17)**; v0.7.1 adds the "progress record" Definition of Done item at the owner's request (a process change; it does not affect requirements or calculation rules)
 
 - v0.1 → v0.2: changed in response to Codex review items #19 #20 #22 (you cannot approve your own PR, release timing, anonymised feedback, scope freeze).
 - v0.7.1 → v0.7.2 (2026-10-20, clarification): D2 now says the hurdle is exact too, as in PRD C-01.
@@ -11,6 +11,7 @@ Version v0.7.7 (last revised 2026-11-12) · 2026-10-17 · Status: **Approved (20
 - v0.7.4 → v0.7.5 (2026-11-03, process): the private development repository moved into the `deal-ops` organization; Vercel's free plan cannot deploy from a private organization repository, so production now deploys from the `release` branch of this public repository (as the website does); the development repository has no preview links any more, and acceptance uses a local production build (owner: option C).
 - v0.7.5 → v0.7.6 (2026-11-11, process): G3 adds checks before and after each public push; release notes are written in the development repository first and come over with the public push; this public repository is never edited directly (owner: "as suggested").
 - v0.7.6 → v0.7.7 (2026-11-12, process): G3 adds step 5, checking the organization page on release day (owner: "do option C directly").
+- v0.7.7 → v0.7.8 (2026-11-12, process): every release-notes heading must carry a one-line title written for users; the website's Changelog page uses it as it is (owner, passed on by the website session).
 
 ---
 
@@ -88,6 +89,7 @@ In the owner's words: an hour from request to delivery for this is too slow. The
 1. Run the **full** manual acceptance checklist and all automated tests on a local production build of `main`.
 2. After the owner confirms going live (this confirmation also covers pushing this public repository):
    - Write the release notes (listing only tested features) in the private development repository first and merge them; they come over with this public push.
+   - Every release-notes heading carries a title, as `## vX.Y.Z (YYYY-MM-DD): Title`: one English sentence saying what users can now do or what changed, with no full stop, no milestone, requirement or PR numbers (M5, R-X-04, #34 and the like), no claim beyond that version's body, and clear to a visitor who has never used the app. The website's Changelog page uses this line as it is.
    - Merge `main` into `release` in the private development repository (kept as a record).
    - Before pushing, run the three release checks kept in the private development repository on the copy about to be pushed; if any fails, do not push: a private-content scan (private names from a list kept outside the repositories, e-mail addresses, local paths, private repository names; new commits must have the noreply author and committer), a public-file check (`README.md`, `docs/RELEASE_NOTES.md` and `docs/en/` byte-identical to the development repository, and no development-only file), and a version-label check (the README's live release equals the newest release-notes heading).
    - Refresh `main` of this repository (`vegeta-labs/goten`) with the usual public-refresh checks (noreply author, identity check); its CI must pass.

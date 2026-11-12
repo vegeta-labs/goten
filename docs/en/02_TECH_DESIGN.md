@@ -1,4 +1,4 @@
-English snapshot of docs/02_TECH_DESIGN.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, updated for v0.8 on 2026-10-25, hosting updated on 2026-11-03 (rules v0.7.5; no calculation rule changed). Checked against the Chinese source on 2026-11-11.
+English snapshot of docs/02_TECH_DESIGN.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, updated for v0.8 on 2026-10-25, hosting updated on 2026-11-03 (rules v0.7.5; no calculation rule changed). Checked against the Chinese source on 2026-11-12.
 
 # Goten — Deal Calculations — Technical design
 
@@ -9,6 +9,7 @@ Version **v0.8** (drafted 2026-10-23; passed 3 rounds of Codex review; approved 
 - v0.7 → v0.7.1 (2026-10-20, clarified against the code after release; no rule changed): no floating-point exception for the hurdle (as in PRD C-01), and the matching risk removed; the engine interface written as in `src/lib/outcome.ts`.
 - v0.7.1 → v0.8 (2026-10-23, approved 2026-10-25): new §9 "v0.8 design": data structures, pure-function placement, log writing, storage-full handling, snapshot versions, exports, test hooks (M5 / M6) and risks for chase and query messages, the activity log, withdrawal before closing and fee payer change before closing; one sentence added to each of §1, §2, §5, §7. No existing calculation rule changes.
 - v0.8 hosting clarification (2026-11-03, under rules v0.7.5; no calculation rule changed): the hosting row in §1 and the branch notes in §6 now say production deploys from this public repository's `release`, the development repository has no previews, and the public `release` is protected.
+- v0.8 storage keys renamed (2026-11-12, PRD v0.8.10; no calculation rule changed): the local storage row in §1 and §9.1: the three keys change from `deal-ops-toolkit:*` to `goten:v1`, `goten:theme` and `goten:tour`, and data under the earlier keys is not migrated (there are no users yet).
 
 ---
 
@@ -24,7 +25,7 @@ Version **v0.8** (drafted 2026-10-23; passed 3 rounds of Codex review; approved 
 | Result type | Every engine returns `{ ok: true, result, checks } \| { ok: false, errors, internal? }` | PRD C-03: invalid input gives no result, so a check can never be mistaken for a pass | Throwing exceptions; returning partial results |
 | CSV | papaparse; **parse errors are not dropped**, they are reported with row number and column name; imports are atomic | Codex #14 | Writing our own parser |
 | Data between modules | **Snapshot model**: "Hand off" copies the data and records the source version number; after an upstream change, the downstream module compares version numbers and shows "out of date" | PRD R-X-07; Codex #15 | Live linking |
-| Local storage | localStorage, key `deal-ops-toolkit:v1`; reads and writes wrapped in try/catch; the structure carries a schema version. The theme choice is stored on its own under key `deal-ops-toolkit:theme` (`light` / `dark`; nothing stored when following the device) and applied through `<html data-theme>`, not inline styles. v0.8: schema version 2; the activity log is stored in the same key as the deal data; when storage is full, the oldest entries are removed first and the save is retried (§9.3) | Keeps working normally when storage fails in private browsing | IndexedDB |
+| Local storage | localStorage, key `goten:v1`; reads and writes wrapped in try/catch; the structure carries a schema version. The theme choice is stored on its own under key `goten:theme` (`light` / `dark`; nothing stored when following the device) and applied through `<html data-theme>`, not inline styles. Tour progress is stored under key `goten:tour`. From 2026-11-12 the three keys use the current name; data under the earlier `deal-ops-toolkit:*` keys is neither read nor migrated. v0.8: schema version 2; the activity log is stored in the same key as the deal data; when storage is full, the oldest entries are removed first and the save is retried (§9.3) | Keeps working normally when storage fails in private browsing | IndexedDB |
 | Tests | Vitest (unit + invariants); independent Python recalculation (standard library `fractions`/`decimal` only); Playwright (added when the first UI path appears, i.e. M2) | See the test plan | Jest |
 | UI unit tests (new dependency in M2) | `@testing-library/react` + `@testing-library/dom` + `jsdom`; test files declare `@vitest-environment jsdom` at the top | User-action cases (TC-IO-20, TC-DEAL-02, TC-ALL-24, TC-X-01/02) run directly in Vitest and count towards the TC coverage check; development dependency only, not shipped in the page | Putting everything in Playwright (slow, and not in the TC coverage report) |
 | End-to-end (new dependency in M2) | `@playwright/test`, Chromium only; runs against the **production build**; `vite preview` reads `vercel.json` and adds the same security response headers, so a CSP violation fails the test; `scripts/check-e2e.mjs` reads the report and checks that every due E2E case ran and passed | Test plan §4 | Cypress |
@@ -132,7 +133,7 @@ Two PRs (decision 11):
 
 ### 9.1 Data structures (`src/state.ts`)
 
-`SCHEMA` goes from 1 to **2**; the storage key stays `deal-ops-toolkit:v1` (the key name is not a version number). `AppState` adds:
+`SCHEMA` goes from 1 to **2**; the storage key does not change (the v1 in its name is not the schema version; the key is now `goten:v1`). `AppState` adds:
 
 ```ts
 interface DealText { ...; initials: string }            // R-X-08.3, stored as typed; validated in derive

@@ -3,7 +3,7 @@
  * No inline styles (Rules D11). Visual direction: the M4 visual plan (not published) (PRD v0.7.3 decision 8, Rules P6).
  * Contrast notes: thin (300) weights only at 24px and above; peach is a fill or dark-mode text colour, never light-mode text.
  * Design variables (colours, radii, control height, shadow, easing, font stacks) come from tokens.css, imported first in main.tsx:
- * shared word for word with Deal Ops Inbox, a second component in design (its design rules are not yet published; hash checked by scripts/check-tokens.mjs).
+ * shared word for word with Trunks, a second component in design (its design rules are not yet published; hash checked by scripts/check-tokens.mjs).
  */
 * {
   box-sizing: border-box;
