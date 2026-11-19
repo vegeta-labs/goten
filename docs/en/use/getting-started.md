@@ -15,7 +15,7 @@ Loading the sample replaces whatever is on the page and clears the activity log.
 
 1. Open the page. A card headed **Before you start** appears.
 2. Click **I understand**. (**I understand — take the 3-minute tour** starts a guided version of this page instead; see [The guided tour](#the-guided-tour).)
-3. Click **Load sample deal** at the top of the page.
+3. Click **Load sample deal** at the top of the page. On a phone it is next to **Take the tour** and **Clear all data**, under the page tabs.
 
 You land on **1. Reconciliation**. The **Summary** shows:
 
@@ -91,18 +91,20 @@ Open **Activity log** to see every decision you just made, newest first.
 
 ## The guided tour
 
-**Take the tour** in the sidebar walks the same deal in 12 steps. Follow the card in the corner: press **Next** or Enter, click **Do this for me** when a step asks you to act, or leave at any time with **Exit tour** or Esc. **Resume tour** picks up where you left it.
+**Take the tour** in the sidebar walks the same deal in 12 steps. Follow the card in the corner: press **Next** or Enter, click **Do this for me** when a step asks you to act, or leave at any time with **Exit tour** or Esc. The last step's button reads **Finish**. **Resume tour** picks up where you left it, and **Restart** next to it offers to start again from step 1.
+
+When the tour ends, a card offers **Keep exploring the sample**, **Clear and start my own deal** and **Replay tour**. **Hide** folds it to one line, **Tour finished · Show**, and Esc closes it. **Clear and start my own deal** asks before it clears anything.
 
 ## When you are finished
 
-- To try your own deal, click **Clear all data** and then **Clear everything**, and go to [Prepare and import your CSV files](import-csv.md). Clearing cannot be undone.
+- To try your own deal, click **Clear all data** and then **Clear everything**, and go to [Prepare and import your CSV files](import-csv.md). Clearing cannot be undone. It also resets the theme and the tour, and shows the **Before you start** notice again.
 - **Load sample deal** brings the sample back at any time.
 
 ## When it goes wrong
 
-| What you see                                                          | What to do                                                                                                                       |
-| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| **Hand-off disabled: Review the 3 suggested matches first.**          | A suggestion is still waiting. Decide it under **Needs your review**.                                                            |
-| **Hand off to allocation** stays greyed out                           | Read the line under the buttons. If it says **Finish your edit first.**, press Enter or click out of the field you were editing. |
-| Different figures from this page                                      | You changed something, or some suggestions were decided differently. **Load sample deal** starts again.                          |
+| What you see                                                          | What to do                                                                                                                                                                            |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Hand-off disabled: Review the 3 suggested matches first.**          | A suggestion is still waiting. Decide it under **Needs your review**.                                                                                                                 |
+| **Hand off to allocation** stays greyed out                           | Read the line under the buttons. If it says **Finish your edit first.**, press Enter or click out of the field you were editing.                                                      |
+| Different figures from this page                                      | You changed something, or some suggestions were decided differently. **Load sample deal** starts again.                                                                               |
 | **out of date** next to **2. Allocation** or **3. Exit distribution** | Something upstream changed after the hand-off. Open the page and click **Hand off again**. If **3. Exit distribution** has no such button, hand off again on **2. Allocation** first. |
