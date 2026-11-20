@@ -154,8 +154,8 @@ export function Reconciliation({
       <p className="eyebrow">Step 1 of 3</p>
       <h2 id="rec-h">Reconciliation</h2>
       <p className="hint" data-tour="rec-rule">
-        A receipt is booked automatically only when its bank reference contains exactly one investor’s payment reference. Everything else is a suggestion until
-        you decide.
+        A receipt is booked automatically only when its bank reference contains exactly one investor’s payment reference. Everything else waits for you, with
+        scored suggestions and reasons when there are any.
       </p>
 
       {state.commitments.length === 0 && state.bank.length === 0 && onStartTour && (

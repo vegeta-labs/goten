@@ -2,6 +2,14 @@
 
 Rule P9: only what is implemented, tested and deployed is listed. Each line names the requirement and the tests that cover it.
 
+## v1.4.1 (2026-11-20): The reconciliation hint now says a receipt may have no suggested investor
+
+The hint under the Reconciliation heading said that every receipt not booked automatically is a suggestion. A receipt can have no suggested investor at all: only investors who score 0.30 or more are suggested (C-REC-3), so a receipt whose payer, reference and amount match nobody well enough gets none. The hint now reads: "Everything else waits for you, with scored suggestions and reasons when there are any." The user guide adds that such a receipt shows **Not matched** (or **Needs review** if an earlier decision on it was set aside) and waits for a person.
+
+Calculations, rounding, import and export formats and saved data are unchanged.
+
+Counts at release: 466 unit tests, 210 of 210 due test-plan cases, 37 end-to-end tests covering 12 of 12 planned end-to-end cases, 17 of 17 mutants in the changed file caught (the full mutation run is weekly), the Python oracle's self-check 180 of 180.
+
 ## v1.4.0 (2026-11-12): Saved data now uses the Goten name, so data saved by earlier versions is not carried over
 
 The last identifiers that carried the product's earlier name now say Goten. The browser storage keys are `goten:v1` (the deal and its activity log), `goten:theme` and `goten:tour`, and the package name is `goten` (Technical design §1, §9.1; R-X-02, R-X-04; the key tests in `src/state.test.ts` and `src/theme.test.ts`, E2E-04). **Data saved by an earlier version is not carried over:** a browser that used v1.3.1 or earlier at this address opens with an empty deal, the theme following the device and the tour at its start; entries under the earlier keys are not read and stay in the browser's storage until its site data is cleared. (The app's address also changed on 2026-11-12, and a browser keeps saved data per address.) There is no migration because the tool has had no users to migrate. Document titles, code comments and the oracle's description use the current name; records of releases up to v1.2.2 keep the name they were released under.
