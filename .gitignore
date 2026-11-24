@@ -11,3 +11,4 @@ test-results
 playwright-report
 # local notes that never go into the repository
 private/
+.mutation-restore.json

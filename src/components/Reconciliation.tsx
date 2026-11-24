@@ -162,7 +162,7 @@ export function Reconciliation({
         <p className="hint">
           New here?{' '}
           <button type="button" className="link" onClick={onStartTour}>
-            Take the guided tour on a fictional deal.
+            Take the guided tour on the sample deal.
           </button>
         </p>
       )}

@@ -143,7 +143,7 @@ export const STEPS: Step[] = [
     targets: () => ['rec-summary', 'rec-rule'],
     text: (c) => {
       const auto = c.rec?.lines.filter((l) => l.status === 'auto').length ?? 0
-      return `Northwind Robotics is a fictional seed round: ${c.state.commitments.length} investors, ${c.state.bank.length} bank lines. ${auto} receipts were booked automatically because their reference names exactly one investor. Everything else waits for you — nothing is booked on a guess.`
+      return `Northwind Robotics is the sample seed round: ${c.state.commitments.length} investors, ${c.state.bank.length} bank lines. ${auto} receipts were booked automatically because their reference names exactly one investor. Everything else waits for you — nothing is booked on a guess.`
     },
   },
   {

@@ -4,7 +4,7 @@ import type { Fee } from './allocation'
 import type { DealSettings } from './deal'
 
 export const SAMPLE_SETTINGS: DealSettings = {
-  name: 'Northwind Robotics — Seed SPV (fictional sample)',
+  name: 'Northwind Robotics — Seed SPV',
   currency: 'GBP',
   asOf: '2026-10-16',
   feeBasis: 'deducted',

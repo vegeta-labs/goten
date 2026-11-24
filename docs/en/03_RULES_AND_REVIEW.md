@@ -64,7 +64,7 @@ G0 requirements review → G1 design review → [freeze lifted] → G2 every PR 
 0. **Self-test gate (before handing to Codex; must be completed and recorded in the review record)** — required by the owner on 2026-10-17: "You need to test and verify, then hand it to Codex for a cross check":
    - Rule-by-rule check: every rule in PRD §5 and every row of the field tables, checked against the code, with results recorded.
    - Boundary and hostile input: 0 / 1 / limit / limit + 1, exactly half a penny, empty values and invalid dates, special IDs such as `__proto__`, CSV with uneven columns and blank lines, text starting with a formula or tab, very large numbers — at least one test for each type.
-   - Test effectiveness: run `scripts/mutation-check.mjs`; every deliberate break must be caught by a test; anything not caught either gets a new test or is shown to be an equivalent change, with the reason written down.
+   - Test effectiveness (which mutants run is set by the development process rules §5: on a PR only the affected ones, none for text-only small fixes): run `scripts/mutation-check.mjs`; every deliberate break must be caught by a test; anything not caught either gets a new test or is shown to be an equivalent change, with the reason written down.
    - Fresh-context review: start a separate reviewer agent that cannot see the development process, and have it review first using the same prompt as Codex; fix the problems it finds first.
    - Codex's role is to cross-confirm, not to be the first to find problems.
 1. Before opening the PR: the PR description lists the requirement IDs and test case IDs covered, and which Definition of Done items do not apply (with reasons).
@@ -76,12 +76,12 @@ G0 requirements review → G1 design review → [freeze lifted] → G2 every PR 
 ### G2a small-fix track (v0.7.3, owner 2026-10-23: "as suggested")
 In the owner's words: an hour from request to delivery for this is too slow. The v1.1.1 fix, which only changed a save message, took over an hour through every gate, most of it on two full mutation runs and the full release checklist.
 - **When it applies (all must hold):** no change under `src/lib/` or to any calculation, rounding or money decision; no change to import or export formats; at most about 5 source files changed (tests and docs not counted). Otherwise the full G2 / G3 applies.
-- **G2 step 0 becomes:** rule check and hostile inputs as usual; mutation runs only the mutants in the changed files (`node scripts/mutation-check.mjs --files=<file,file>`), and every new mutant must be caught; the fresh-context review as usual. Once the reviewer's findings are fixed, Codex and the local re-check may run at the same time.
+- **G2 step 0 becomes:** rule check and hostile inputs as usual; mutation runs only the affected mutants (`node scripts/mutation-check.mjs --since=main`, from 2026-11-24, see the development process rules §5), and every chosen mutant must be caught (a text-only small fix skips mutation, on the conditions in the development process rules §5, owner 2026-11-24); the fresh-context review as usual. Once the reviewer's findings are fixed, Codex and the local re-check may run at the same time.
 - **Codex by risk (v0.7.4, owner 2026-10-30):** a Codex round is costly; its value is a second model family's eyes, so it is kept for the changes most likely to go wrong and most costly when they do.
   - Anything touching calculation, money, rounding, import or export formats, or a milestone feature: as before, self-test gate and Codex; the number of rounds and when to stop follow the development process rules (these changes count as high risk).
   - A G2a small fix that **only changes styles, copy, docs or the website** (no change to the app's behaviour): self-test gate only (fresh-context review, each finding judged and fixed); **no Codex**; the review record says "no Codex under v0.7.4".
   - Unsure which: ask the owner first.
-- **G3 becomes:** all automated tests (including end-to-end); mutation as in the development process rules §5 (only the changed files; the full run is weekly in CI, and before a release when calculation, rounding or import and export rules or formats change); from the manual checklist only the items this change touches, plus M-01 to M-03 as a smoke test; the production smoke test and security headers as usual.
+- **G3 becomes:** all automated tests (including end-to-end); mutation as in the development process rules §5 (only the affected mutants; the full run is weekly in CI, and before a release when calculation, rounding or import and export rules or formats change); from the manual checklist only the items this change touches, plus M-01 to M-03 as a smoke test; the production smoke test and security headers as usual.
 - **Waiting time:** while mutation, Codex or CI runs, move the next piece of work forward; if CI shows no progress for 3 minutes, find out why and cancel and re-run a stuck job.
 - The PR description says "small-fix track" and which conditions hold.
 
@@ -109,7 +109,7 @@ In the owner's words: an hour from request to delivery for this is too slow. The
 ## 4. Definition of Done
 
 Before a PR merges it must meet the following (for items that do not apply, say why in the PR):
-- [ ] Self-test gate done and recorded (rule check, hostile input, mutation check, fresh-context review)
+- [ ] Self-test gate done and recorded (rule check, hostile input, mutation check (skipped for text-only changes per the development process rules §5, and noted in the record), fresh-context review)
 - [ ] Implementation matches the relevant rules in PRD §5
 - [ ] Every acceptance point involved has a test, with the ID in the test name; every hand-worked case in the test plan matches
 - [ ] Invalid-input cases exist and pass

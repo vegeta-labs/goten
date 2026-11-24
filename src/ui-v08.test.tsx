@@ -174,7 +174,7 @@ describe('v0.8 messages (R-REC-10)', () => {
     fireEvent.click(screen.getByRole('tab', { name: /^Activity log$/ }))
     await act(async () => pending.shift()!.yes())
     const events = () => (JSON.parse(storage.getItem(STORAGE_KEY)!) as AppState).log.entries.map((e) => `${e.event}:${e.detail}`)
-    expect(events()).toEqual(['sample_loaded:fictional sample deal', 'message_copied:template B'])
+    expect(events()).toEqual(['sample_loaded:sample deal', 'message_copied:template B'])
     fireEvent.click(screen.getByRole('tab', { name: /Reconciliation/ }))
     click('Copy query for Chloe Martin about t03')
     click('Copy query for Chloe Martin about t03')

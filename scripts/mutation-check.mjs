@@ -1,6 +1,7 @@
 // Self-test gate (Rules §3, step "测试有效性"): break the code on purpose; a test must fail every time.
-import { readFileSync, writeFileSync } from 'node:fs'
-import { execSync } from 'node:child_process'
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { execFileSync, spawn } from 'node:child_process'
+import { occurrenceProblems, parseDiff, parseMutants, selectSince } from './mutation-select.mjs'
 
 const MUTANTS = [
   ['src/lib/money.ts', 'return 2n * r >= D ? q + 1n : q', 'return 2n * r > D ? q + 1n : q', 'half-up becomes half-down'],
@@ -122,7 +123,12 @@ const MUTANTS = [
     'saved "__proto__" decision becomes a prototype',
   ],
   ['src/state.ts', "if (f.payer === 'investors' && f.kind === 'fixed') f.kind = 'perInvestor'", '', 'fee kind not corrected when payer changes'],
-  ['src/state.ts', "const value = a.field === 'id' ? idOrNew(a.value, 'inv') : a.value", 'const value = a.value', 'blank investor ID not regenerated'],
+  [
+    'src/state.ts',
+    "case 'editCommitment': {\n      const value = a.field === 'id' ? idOrNew(a.value, 'inv') : a.value",
+    "case 'editCommitment': {\n      const value = a.value",
+    'blank investor ID not regenerated',
+  ],
   [
     'src/derive.ts',
     'const errors = [...c.errors, ...validateReconcile(input).map(friendly)]',
@@ -153,7 +159,13 @@ const MUTANTS = [
     'voided decision revives when data is changed back (Codex M2 #1)',
   ],
   ['src/state.ts', "if (field === 'name') return { ...x, name: value }", '', 'rename flags or loses the refund (Codex M2 #2)'],
-  ['src/state.ts', 'return { ...x, needsCheck: true }', 'return x', 'amount edit leaves refund unflagged (Codex M2 #2)'],
+  // pattern made unique on 2026-11-24: it had matched the Codex M6 r5 line above it since that line was added
+  [
+    'src/state.ts',
+    "if (field === 'name') return { ...x, name: value }\n    return { ...x, needsCheck: true }",
+    "if (field === 'name') return { ...x, name: value }\n    return x",
+    'amount edit leaves refund unflagged (Codex M2 #2)',
+  ],
   [
     'src/components/Allocation.tsx',
     'const canSend = Boolean(result) && !pending && !isBlocked && refundsToCheck.length === 0 && !stale',
@@ -306,7 +318,7 @@ const MUTANTS = [
   ],
   ['src/tour/script.ts', 'if (r && r.returnOfCapital < r.capital)', 'if (false)', 'exit card claims capital back on a loss (Codex M3 R1 #4)'],
   ['src/tour/script.ts', "if (r.status === 'overpaid') return", 'if (false) return', 'step 6 misdescribes an overpayment (Codex M3 R1 #3)'],
-  ['src/tour/script.ts', '.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))', '', 'tour data check depends on decision order'],
+  ['src/tour/script.ts', 'Object.entries(x.decisions).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))', 'Object.entries(x.decisions)', 'tour data check depends on decision order'],
   [
     'src/components/Distribution.tsx',
     'const holdingList = deriveHoldings(state).input',
@@ -684,7 +696,12 @@ const MUTANTS = [
   ['src/state.ts', '!rate?.ok || rate.value !== c.feeAtApply.rateBps', 'f.value !== String(c.feeAtApply.rateBps / 100)', 'rate compared as text, not by value'],
   ['src/state.ts', 'normRef(people.get(id)!.reference) !== w.reference', 'people.get(id)!.reference !== w.reference', 'withdrawal voided by a reformatted reference'],
   ['src/state.ts', 'if (a.consent !== true || ', 'if (', 'withdrawal marked without consent'],
-  ['src/state.ts', '      return bump(s, { withdrawals })\n', '      return { ...s, withdrawals }\n', 'withdrawal does not make the allocation stale'],
+  [
+    'src/state.ts',
+    '      withdrawals[a.investorId] = { on: on.value, consent: true, reference: normRef(row.reference) }\n      return bump(s, { withdrawals })\n',
+    '      withdrawals[a.investorId] = { on: on.value, consent: true, reference: normRef(row.reference) }\n      return { ...s, withdrawals }\n',
+    'withdrawal does not make the allocation stale',
+  ],
   ['src/state.ts', "const fee = FEE_DATA.has(a.type) ? voidChangedFeeChange(marked.state)", "const fee = false ? voidChangedFeeChange(marked.state)", 'fee edits never void the change'],
   ['src/derive.ts', 'if (e.due !== x.cashDue) due[x.id] = e.due', '', 'adjusted cash due not passed to reconciliation'],
   ['src/derive.ts', 'if (Object.hasOwn(withdrawals, x.id)) withdrawn[x.id] = withdrawals[x.id].on', '', 'withdrawals not passed to reconciliation'],
@@ -761,43 +778,157 @@ const MUTANTS = [
   ['src/tour/progress.ts', "export const TOUR_KEY = 'goten:tour'", "export const TOUR_KEY = 'deal-ops-toolkit:tour'", 'tour progress stored under the earlier key'],
 ]
 
-// Small-fix track (Rules G2 step 0): `--files a.ts,b.tsx` runs only the mutants in those files; the full run is due before release (G3)
-const filesArg =
-  process.argv.find((a) => a.startsWith('--files='))?.slice('--files='.length) ??
-  (process.argv.includes('--files') ? process.argv[process.argv.indexOf('--files') + 1] : null)
-const only = filesArg
-  ? new Set(
-      filesArg
-        .split(',')
-        .map((f) => f.trim())
-        .filter(Boolean),
-    )
-  : null
-const RUN = only ? MUTANTS.filter(([file]) => only.has(file)) : MUTANTS
-if (only && RUN.length === 0) {
-  console.log(`no mutants in ${[...only].join(', ')}`)
+// Usage (DEV_PROCESS_RULES §5):
+//   --check-only          every pattern occurs exactly once in its file; seconds, no tests run
+//   --since=<commit>      only the mutants a change since <commit> can affect (see scripts/mutation-select.mjs)
+//   --files=a.ts,b.tsx    only the mutants in these files
+//   --list                print the chosen mutants and why, run nothing
+//   --budget=<minutes>    estimate the run from one clean test run; over the budget, print the list and stop (exit 2)
+// A clean test run comes first: if it fails, no mutant result means anything. While a mutant is in place its file's
+// original text is kept in RESTORE; a run that was killed puts it back at the start of the next run.
+const arg = (name) =>
+  process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3) ??
+  (process.argv.includes(`--${name}`) ? (process.argv[process.argv.indexOf(`--${name}`) + 1] ?? '') : null)
+const flag = (name) => process.argv.includes(`--${name}`)
+
+const RESTORE = '.mutation-restore.json'
+if (existsSync(RESTORE)) {
+  // put the original back only if the file still holds exactly the mutated text; anything else means someone has
+  // already restored or edited it, and writing the old copy would lose their work
+  let saved = null
+  try {
+    saved = JSON.parse(readFileSync(RESTORE, 'utf8'))
+  } catch {
+    console.log(`${RESTORE} is unreadable; deleted. Check the source with git diff`)
+  }
+  if (saved) {
+    const now = existsSync(saved.file) ? readFileSync(saved.file, 'utf8') : null
+    if (now === saved.mutated) {
+      writeFileSync(saved.file, saved.orig)
+      console.log(`restored ${saved.file}: a previous run stopped with a mutant in place`)
+    } else console.log(`${saved.file} has changed since a previous run stopped; left as it is. Check it with git diff`)
+  }
+  unlinkSync(RESTORE)
+}
+
+const read = (f) => (existsSync(f) ? readFileSync(f, 'utf8') : null)
+const problems = occurrenceProblems(MUTANTS, read)
+for (const p of problems) console.log(`${p.count === 0 ? 'MISSING ' : 'AMBIGUOUS'} ${p.label}: pattern found ${p.count} times in ${p.file}`)
+if (flag('check-only')) {
+  console.log(
+    problems.length ? `${problems.length} of ${MUTANTS.length} patterns not found exactly once` : `${MUTANTS.length} patterns, each found exactly once`,
+  )
+  process.exit(problems.length ? 1 : 0)
+}
+
+let RUN = MUTANTS.map((m) => ({ mutant: m, reasons: [] }))
+const filesArg = arg('files')
+if (filesArg) {
+  const only = new Set(
+    filesArg
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean),
+  )
+  RUN = RUN.filter(({ mutant: [file] }) => only.has(file))
+  if (RUN.length === 0) {
+    console.log(`no mutants in ${[...only].join(', ')}`)
+    process.exit(1)
+  }
+}
+const since = arg('since')
+if (since) {
+  const git = (args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'ignore'] })
+  const readOld = (ref, f) => {
+    try {
+      return git(['show', `${ref}:${f}`])
+    } catch {
+      return null
+    }
+  }
+  // from where this branch left <since>, so later commits on <since> do not show up as changes here
+  const base = git(['merge-base', since, 'HEAD']).trim()
+  const chosen = selectSince({
+    mutants: RUN.map((r) => r.mutant),
+    oldMutants: parseMutants(readOld(base, 'scripts/mutation-check.mjs') ?? 'const MUTANTS = [\n]\n'),
+    diff: parseDiff(git(['diff', '-U0', '--no-color', '--no-renames', base, '--'])),
+    readFile: read,
+  })
+  RUN = chosen
+}
+const scope = [filesArg && `files ${filesArg}`, since && `since ${since}`].filter(Boolean).join(', ')
+console.log(`${RUN.length} of ${MUTANTS.length} mutants chosen${scope ? ` (${scope})` : ''}`)
+const printList = () => {
+  for (const { mutant, reasons } of RUN) console.log(`  ${mutant[0]}  ${mutant[3]}${reasons.length ? `  [${reasons.join('; ')}]` : ''}`)
+}
+if (flag('list')) {
+  printList()
+  process.exit(0)
+}
+if (RUN.length === 0) process.exit(problems.length ? 1 : 0)
+
+const TEST = ['vitest', 'run', '--exclude', 'src/lib/perf.test.ts']
+let child = null
+let inPlace = null
+const putBack = () => {
+  if (inPlace) writeFileSync(inPlace.file, inPlace.orig)
+  if (existsSync(RESTORE)) unlinkSync(RESTORE)
+  inPlace = null
+}
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(sig, () => {
+    child?.kill('SIGTERM')
+    putBack()
+    console.log(`stopped by ${sig}; source restored`)
+    process.exit(130)
+  })
+}
+const runTests = () =>
+  new Promise((done) => {
+    child = spawn('npx', TEST, { stdio: 'ignore' })
+    child.on('exit', (code, signal) => {
+      child = null
+      done({ code, signal })
+    })
+  })
+
+const t0 = Date.now()
+if ((await runTests()).code !== 0) {
+  console.log('the unit tests fail without any mutant: fix them first')
   process.exit(1)
+}
+const perRun = (Date.now() - t0) / 1000
+const estimate = Math.ceil((perRun * RUN.length) / 60)
+console.log(`one clean run took ${perRun.toFixed(0)} s; about ${estimate} min for ${RUN.length} mutants`)
+const budget = arg('budget')
+if (budget && estimate > Number(budget)) {
+  printList()
+  console.log(`over the ${budget} min budget: not run. Report the count and reasons; the owner decides`)
+  process.exit(2)
 }
 
 let survived = 0
-for (const [file, find, repl, label] of RUN) {
-  const orig = readFileSync(file, 'utf8')
-  if (!orig.includes(find)) {
-    console.log(`MISSING  ${label}: pattern not found in ${file}`)
-    survived++
-    continue
+let ran = 0
+for (const { mutant } of RUN) {
+  const [file, find, repl, label] = mutant
+  const orig = read(file)
+  if (orig === null || !orig.includes(find)) continue
+  ran++
+  const mutated = orig.replace(find, repl)
+  inPlace = { file, orig }
+  writeFileSync(RESTORE, JSON.stringify({ file, orig, mutated }))
+  writeFileSync(file, mutated)
+  const { code, signal } = await runTests()
+  putBack()
+  // only a test failure counts as caught; a test run stopped from outside says nothing about the mutant
+  if (code === null) {
+    console.log(`the test run for "${label}" was stopped by ${signal}; run again`)
+    process.exit(1)
   }
-  writeFileSync(file, orig.replace(find, repl))
-  let killed = false
-  try {
-    execSync('npx vitest run --exclude src/lib/perf.test.ts', { stdio: 'ignore' })
-  } catch {
-    killed = true
-  } finally {
-    writeFileSync(file, orig)
-  }
-  console.log(`${killed ? 'killed  ' : 'SURVIVED'} ${label}`)
-  if (!killed) survived++
+  const passed = code === 0
+  console.log(`${passed ? 'SURVIVED' : 'killed  '} ${label}`)
+  if (passed) survived++
 }
-console.log(`${RUN.length - survived}/${RUN.length} mutants killed${only ? ` (only ${[...only].join(', ')}; full run: ${MUTANTS.length})` : ''}`)
-process.exit(survived ? 1 : 0)
+console.log(`${ran - survived}/${ran} mutants killed${scope ? ` (${scope}; full run: ${MUTANTS.length})` : ''}`)
+if (problems.length) console.log(`${problems.length} patterns not found exactly once: see above`)
+process.exit(survived || problems.length ? 1 : 0)

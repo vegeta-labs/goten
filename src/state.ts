@@ -740,7 +740,7 @@ function feeVoidEvents(v: { change: FeePayerChange; reason: string } | null): Ne
 function eventsFor(prev: AppState, next: AppState, a: Action, voided: Voided[]): NewEvent[] {
   switch (a.type) {
     case 'loadSample':
-      return [{ event: 'sample_loaded', detail: 'fictional sample deal' }]
+      return [{ event: 'sample_loaded', detail: 'sample deal' }]
     case 'replaceCommitments':
     case 'importBank': {
       // a replacing statement clears every decision itself, before the void check sees them (R-REC-02.2)

@@ -2,6 +2,16 @@
 
 Rule P9: only what is implemented, tested and deployed is listed. Each line names the requirement and the tests that cover it.
 
+## v1.4.2 (2026-11-24): The sample deal is no longer labelled as fictional in the app
+
+The app no longer says "fictional" on its own pages. The sample deal is now called **Northwind Robotics — Seed SPV** (it was "… (fictional sample)"), so chase messages and confirmations copied from the sample carry the shorter name. Loading the sample logs "sample deal". The first-visit card, the empty reconciliation page and the guided tour now say "sample" where they said "fictional". The disclaimer (not investment, tax or legal advice; not affiliated with any platform) is unchanged.
+
+Calculations, rounding, import and export formats and saved data are unchanged. A sample saved by an earlier version keeps its old name until the sample is loaded again.
+
+For contributors: `node scripts/mutation-check.mjs --since=main` runs only the mutants a change can affect (new mutants and those within 3 lines of a changed line), and `npm run mutation:patterns` checks in seconds that every mutant's pattern occurs exactly once (it runs in CI). Stopping a run puts the source back.
+
+Counts at release: 466 unit tests, 210 of 210 due test-plan cases, 37 end-to-end tests covering 12 of 12 planned end-to-end cases, 4 of 4 affected mutants caught (the full mutation run is weekly), the Python oracle's self-check 180 of 180.
+
 ## v1.4.1 (2026-11-20): The reconciliation hint now says a receipt may have no suggested investor
 
 The hint under the Reconciliation heading said that every receipt not booked automatically is a suggestion. A receipt can have no suggested investor at all: only investors who score 0.30 or more are suggested (C-REC-3), so a receipt whose payer, reference and amount match nobody well enough gets none. The hint now reads: "Everything else waits for you, with scored suggestions and reasons when there are any." The user guide adds that such a receipt shows **Not matched** (or **Needs review** if an earlier decision on it was set aside) and waits for a person.

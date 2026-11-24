@@ -15,6 +15,7 @@
     "coverage:check": "vitest run --reporter=json --outputFile=test-report.json && node scripts/check-coverage.mjs test-report.json",
     "bench": "BENCH=1 vitest run src/lib/perf.test.ts",
     "mutation": "node scripts/mutation-check.mjs",
+    "mutation:patterns": "node scripts/mutation-check.mjs --check-only && node scripts/mutation-select-self-test.mjs",
     "e2e": "playwright test",
     "e2e:check": "playwright test && node scripts/check-e2e.mjs e2e-report.json",
     "check:tokens": "node scripts/check-tokens.mjs"

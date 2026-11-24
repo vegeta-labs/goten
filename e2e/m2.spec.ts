@@ -151,7 +151,7 @@ test('E2E-04 data survives a reload; "Clear all data" wipes it', async ({ page }
   await expect(page.getByTestId('excess')).toContainText('Hugo Bernard: £5,000.00')
   await expect(page.getByTestId('stale')).toHaveCount(0)
   await page.getByRole('tab', { name: /Reconciliation/ }).click()
-  await expect(page.getByTestId('deal-name')).toHaveText('Northwind Robotics — Seed SPV (fictional sample)')
+  await expect(page.getByTestId('deal-name')).toHaveText('Northwind Robotics — Seed SPV')
   await expect(page.getByText('Nothing to review.')).toBeVisible()
   await expect(page.getByTestId('rec-totals')).toContainText('£108,500.00')
   await page.getByText(/^Investors \(12\)$/).click()

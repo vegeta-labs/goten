@@ -23,6 +23,8 @@ jobs:
         run: npm run check:tokens
       - name: Lint
         run: npm run lint
+      - name: Mutant patterns each found exactly once + selection self-test (DEV_PROCESS_RULES §5)
+        run: npm run mutation:patterns
       - name: Oracle self-check (independent Python implementation)
         run: npm run oracle:selfcheck
       - name: Unit, invariant and TS-vs-oracle tests + milestone coverage

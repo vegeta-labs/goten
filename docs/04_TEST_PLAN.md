@@ -213,8 +213,8 @@ v0.7.2 → v0.8（2026-10-23，2026-10-25 批准）：加 §2.5（PRD v0.8：TC-
 
 | 编号 | 对应 | 输入 | 期望 |
 |---|---|---|---|
-| TC-REC-42 〔M5〕 | C-REC-8 模板 A | 示例复核后，David Kim（应打款 £2,500，已收 £2,000，备注号 NW-004） | 文字逐字等于：`Hi David Kim,` 空行 `For Northwind Robotics — Seed SPV (fictional sample), we have received £2,000.00 GBP of the £2,500.00 GBP due from you, so £500.00 GBP is still outstanding. Please pay it using the payment reference NW-004 exactly as written.` 空行 模板 A 第二段原文 空行 `Thank you.` |
-| TC-REC-43 〔M5〕 | C-REC-8 模板 A | 示例里 James Whitfield（已收 £0：t16 晚于截止日）；同一名单改为 USD 交易 | 第一句为 `For Northwind Robotics — Seed SPV (fictional sample), we have not yet received the £20,000.00 GBP due from you.`，其余与 TC-REC-42 同结构；USD 时金额写 `US$20,000.00 USD` |
+| TC-REC-42 〔M5〕 | C-REC-8 模板 A | 示例复核后，David Kim（应打款 £2,500，已收 £2,000，备注号 NW-004） | 文字逐字等于：`Hi David Kim,` 空行 `For Northwind Robotics — Seed SPV, we have received £2,000.00 GBP of the £2,500.00 GBP due from you, so £500.00 GBP is still outstanding. Please pay it using the payment reference NW-004 exactly as written.` 空行 模板 A 第二段原文 空行 `Thank you.` |
+| TC-REC-43 〔M5〕 | C-REC-8 模板 A | 示例里 James Whitfield（已收 £0：t16 晚于截止日）；同一名单改为 USD 交易 | 第一句为 `For Northwind Robotics — Seed SPV, we have not yet received the £20,000.00 GBP due from you.`，其余与 TC-REC-42 同结构；USD 时金额写 `US$20,000.00 USD` |
 | TC-REC-44 〔M5〕 | C-REC-8 模板 B, R-REC-10.2 | 示例 t03（£20,000.00，2026-10-07，付款人 CHLOE MARTIN）对候选 Chloe Martin；另造一条流水：付款人 `BEN OKAFOR`、备注 `NW-002 =cmd`、交易 ID `T-SECRET`，候选为 Amelia Hart | 第一条：`we received a payment of £20,000.00 GBP on 7 October 2026 that we could not match…`，逐字等于模板 B；第二条的文字里不出现 `BEN OKAFOR`、`NW-002`、`=cmd`、`T-SECRET` 中任何一个 |
 | TC-REC-45 〔M5〕 | R-REC-10.1, I-09 | 示例复核后导出追款清单 CSV；另一名单中某人姓名为 `=HYPERLINK("x")` | 每行多一列 `message`，等于该人的模板 A 文字（含换行，按 CSV 引号规则）；以 `=` 开头的姓名在 `name` 列转义；`message` 列以 `Hi ` 开头，不需转义 |
 | TC-REC-46 〔M5〕 | R-REC-10.1–10.3 | 界面：示例复核前点 t03 下 Chloe 的「Copy query」；复核后点 David 的「Copy message」 | 剪贴板内容分别等于 TC-REC-44、TC-REC-42 的文字；随后显示「Copied. Send it yourself from your usual email.」；页面没有 `mailto:` 链接指向投资人，没有打开新窗口；剪贴板不可用时文字被选中供手动复制 |

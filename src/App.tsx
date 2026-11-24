@@ -507,7 +507,7 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
             <h2 id="disc-h">Before you start</h2>
             <p>{DISCLAIMER_TEXT}</p>
             <p>{PRIVACY_TEXT}</p>
-            <p>The sample deal is fictional. Load it to try every step without your own data.</p>
+            <p>Load the sample deal to try every step without your own data.</p>
             <div className="row-actions">
               <button
                 type="button"

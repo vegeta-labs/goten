@@ -20,17 +20,17 @@ Version v0.3 · 2026-10-23 · Status: **Confirmed by the owner (v0.2: 2026-10-20
 
 - **First visit**: the disclaimer card gets two buttons, both of which include an explicit acknowledgement: main button "I understand — take the 3-minute tour" (acknowledge + load the sample + start); secondary button "I understand" (go to a blank deal).
 - **Always available**: the sidebar has "Take the tour" (M4 copy change 6, originally "Guided tour"; see the M4 visual plan (not published)); after leaving part-way, it shows "Resume tour (step 6 of 12)" and "Restart".
-- **Empty state**: when the reconciliation page has no data, a one-line hint "New here? Take the guided tour on a fictional deal."
+- **Empty state**: when the reconciliation page has no data, a one-line hint "New here? Take the guided tour on the sample deal."
 - No pop-ups, and no automatic start on every visit.
 - When the current data is not the "unchanged sample", confirm once before starting: "This replaces the deal currently on this page. It is stored only in this browser."
 
 ## 3. Steps (12 steps, plus a start card and an end card)
 
-**Start card**: "Walk through a fictional seed round: you'll book receipts, close the round and split an exit. About 3 minutes — leave any time with Esc." (Start / Not now)
+**Start card**: "Walk through a sample seed round: you'll book receipts, close the round and split an exit. About 3 minutes — leave any time with Esc." (Start / Not now)
 
 | # | Module | Highlight | Card text (English) | Action | Real pain point |
 |---|---|---|---|---|---|
-| 1 | Reconciliation | Summary figures + rule note | "Northwind Robotics is a fictional seed round: 12 investors, 16 bank lines. 9 receipts were booked automatically because their reference names exactly one investor. Everything else waits for you — nothing is booked on a guess." | Next | The worst thing in automatic reconciliation is booking to the wrong person, so the "conservative" rule comes first |
+| 1 | Reconciliation | Summary figures + rule note | "Northwind Robotics is the sample seed round: 12 investors, 16 bank lines. 9 receipts were booked automatically because their reference names exactly one investor. Everything else waits for you — nothing is booked on a guess." | Next | The worst thing in automatic reconciliation is booking to the wrong person, so the "conservative" rule comes first |
 | 2 | Reconciliation | t03 suggestion | "No reference at all. The payer name and amount match Chloe Martin, so she's suggested (score 0.55) — but not booked. Confirm Chloe." | Confirm | Investors do not write a reference |
 | 3 | Reconciliation | t05 suggestion | "A family office paid £15,000 — Elena's amount, but not her name (score 0.35). In a real deal, check it's her investing entity before you confirm. Here it is: confirm Elena." | Confirm | Payment from an entity or family office needs human judgement most |
 | 4 | Reconciliation | t12 suggestion | "Typo: 'NW 11' instead of NW-011. The score is high (0.80), but it is still your decision. Confirm Kavya." | Confirm | Mistyped reference; a high score still does not book automatically |

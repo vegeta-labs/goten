@@ -242,7 +242,7 @@ export function TourNote({
           <p className="tour-count" id={titleId}>
             Guided tour
           </p>
-          <p>Walk through a fictional seed round: you&apos;ll book receipts, close the round and split an exit. About 3 minutes — leave any time with Esc.</p>
+          <p>Walk through a sample seed round: you&apos;ll book receipts, close the round and split an exit. About 3 minutes — leave any time with Esc.</p>
           {replaces && <p className="tour-wrong">This replaces the deal currently on this page. It is stored only in this browser.</p>}
           <div className="tour-actions">
             <button type="button" className="primary" ref={primary} onClick={onStart}>
@@ -259,7 +259,7 @@ export function TourNote({
           <p className="tour-count" id={titleId}>
             Resume tour
           </p>
-          <p>The data has changed since you left. Restart the tour from step {(step ?? 0) + 1}? This reloads the fictional sample.</p>
+          <p>The data has changed since you left. Restart the tour from step {(step ?? 0) + 1}? This reloads the sample.</p>
           {replaces && <p className="tour-wrong">This replaces the deal currently on this page. It is stored only in this browser.</p>}
           <div className="tour-actions">
             <button type="button" className="primary" ref={primary} onClick={onStart}>
@@ -276,7 +276,7 @@ export function TourNote({
           <p className="tour-count" id={titleId}>
             Jump to step {(step ?? 0) + 1}
           </p>
-          <p>You have changed the sample since the tour reached this point. Jumping replays the fictional sample to step {(step ?? 0) + 1}.</p>
+          <p>You have changed the sample since the tour reached this point. Jumping replays the sample to step {(step ?? 0) + 1}.</p>
           {replaces && <p className="tour-wrong">This replaces the deal currently on this page. It is stored only in this browser.</p>}
           <div className="tour-actions">
             <button type="button" className="primary" ref={primary} onClick={onStart}>

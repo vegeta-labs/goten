@@ -13,9 +13,7 @@ test('E2E-08 copy a chase message, undo t03 and copy the query, see both in the 
   await page.getByRole('button', { name: 'Copy message for David Kim' }).click()
   await expect(page.getByText('Copied. Send it yourself from your usual email.')).toBeVisible()
   const chase = await page.evaluate(() => navigator.clipboard.readText())
-  expect(chase).toContain(
-    'Hi David Kim,\n\nFor Northwind Robotics — Seed SPV (fictional sample), we have received £2,000.00 GBP of the £2,500.00 GBP due from you',
-  )
+  expect(chase).toContain('Hi David Kim,\n\nFor Northwind Robotics — Seed SPV, we have received £2,000.00 GBP of the £2,500.00 GBP due from you')
   expect(chase).toContain('showing its UETR, and send it to us so we can trace the payment.')
 
   await page.getByRole('button', { name: 'Undo decision on t03' }).click()

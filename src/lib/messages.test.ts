@@ -6,7 +6,7 @@ import { SAMPLE_BANK, SAMPLE_COMMITMENTS, SAMPLE_SETTINGS } from './sample'
 import { amountWithCode, chaseMessage, longDate, queryMessage } from './messages'
 import { chaseListCsv } from './exports'
 
-const DEAL = 'Northwind Robotics — Seed SPV (fictional sample)'
+const DEAL = 'Northwind Robotics — Seed SPV'
 const MT103 =
   'If you have already sent this payment, please ask your bank for the MT103 (or equivalent) for the transfer, showing its UETR, and send it to us so we can trace the payment.'
 
