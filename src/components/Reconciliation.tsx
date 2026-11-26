@@ -452,7 +452,7 @@ function OwnTermsCells({ row, n, locked, edit }: { row: CommitmentRow; n: number
             {row.ownFeeMode || 'Deal default'} · {OWN_TERMS_LOCKED_TEXT}
           </span>
         ) : (
-          <select aria-label={`Investor ${n} own fee mode`} value={row.ownFeeMode} onChange={(e) => edit('ownFeeMode')(e.target.value)}>
+          <select className="cell" aria-label={`Investor ${n} own fee mode`} value={row.ownFeeMode} onChange={(e) => edit('ownFeeMode')(e.target.value)}>
             <option value="">Deal default</option>
             <option value="on_top">On top</option>
             <option value="deducted">Deducted from the wire</option>
@@ -468,7 +468,7 @@ function OwnTermsCells({ row, n, locked, edit }: { row: CommitmentRow; n: number
         <Cell className="cell num" label={`Investor ${n} refunded`} value={row.refunded} onCommit={edit('refunded')} />
       </td>
       <td>
-        <select aria-label={`Investor ${n} refund only`} value={row.refundOnly} onChange={(e) => edit('refundOnly')(e.target.value)}>
+        <select className="cell" aria-label={`Investor ${n} refund only`} value={row.refundOnly} onChange={(e) => edit('refundOnly')(e.target.value)}>
           <option value="">—</option>
           <option value="withdrawn">Withdrawn</option>
           <option value="closed">Closed (other final state)</option>

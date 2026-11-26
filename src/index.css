@@ -205,6 +205,14 @@ select.cell,
 select.field {
   padding-right: 34px;
 }
+/* iOS Safari zooms the page into any field under 16px and leaves it zoomed (M-10 on a real iPhone, 2026-11-26) */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+}
 select:hover {
   border-color: var(--text);
 }

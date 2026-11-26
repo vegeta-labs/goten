@@ -2,6 +2,14 @@
 
 Rule P9: only what is implemented, tested and deployed is listed. Each line names the requirement and the tests that cover it.
 
+## v1.5.1 (2026-11-26): Fields no longer zoom the page on an iPhone, and the new drop-down menus match the others
+
+From the first check on a real iPhone (Safari). On a touch screen, every field and drop-down menu now uses text of at least 16 pixels, so tapping a field no longer makes iOS zoom the page and leave it zoomed with the figures cut off at the right (R-X-04; E2E-07 in `e2e/phone.spec.ts`). The drop-down menus added in v1.5.0 (instrument, who pays the platform fee, own fee mode, refund only) now have the same height and arrow spacing as the other menus. Every figure on the phone matched the expected sample results.
+
+Calculations, rounding, import and export formats and saved data are unchanged.
+
+Counts at release: 551 unit tests, 272 of 272 due test-plan cases, 41 end-to-end tests covering 14 of 14 planned end-to-end cases (one new phone test), no mutant near the changed lines (style and class changes only; the full run of 336 was at v1.5.0), the Python oracle's self-check 282 of 282.
+
 ## v1.5.0 (2026-11-26): Each investor can have their own fee and carry, with a pro-rata platform fee and an allocation hand-off file
 
 Requirements v0.9 (decision 16). Everything below is optional: a deal that uses none of it gives the same results, exports and saved figures as v1.4.2 (checked by keeping the v1.4.2 engines in the tests and comparing 3,000 random deals field by field).

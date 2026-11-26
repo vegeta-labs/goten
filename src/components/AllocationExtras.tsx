@@ -18,6 +18,7 @@ export function InstrumentField({ value, dispatch }: { value: Instrument; dispat
     <label>
       Instrument
       <select
+        className="field"
         aria-label="Instrument"
         value={value}
         onChange={(e) => {
@@ -83,7 +84,7 @@ export function PlatformFeeSection({ value, sym, dispatch }: { value: PlatformFe
             </label>
             <label>
               Paid by
-              <select aria-label="Platform fee paid by" value={value.payer} onChange={(e) => set({ payer: e.target.value as FeePayer })}>
+              <select className="field" aria-label="Platform fee paid by" value={value.payer} onChange={(e) => set({ payer: e.target.value as FeePayer })}>
                 <option value="investors">Investors, pro rata</option>
                 <option value="lead">The lead (invoice)</option>
                 <option value="company">The company (from the wire)</option>
@@ -123,7 +124,7 @@ export function InvestorTermsCells({ v, i, dispatch, state }: { v: InvestorRow; 
   return (
     <>
       <td>
-        <select aria-label={`Allocation investor ${i + 1} own fee mode`} value={v.ownFeeMode} onChange={(e) => edit('ownFeeMode')(e.target.value)}>
+        <select className="cell" aria-label={`Allocation investor ${i + 1} own fee mode`} value={v.ownFeeMode} onChange={(e) => edit('ownFeeMode')(e.target.value)}>
           <option value="">Deal default</option>
           <option value="on_top">On top</option>
           <option value="deducted">Deducted from the wire</option>
