@@ -41,7 +41,7 @@ The project owner owns the problem, the requirements, the calculation rules, the
 
 - No money movement, no bank connections and no emails sent: it calculates and explains, and people act. Messages are copied for you to send.
 - Withdrawal and fee payer changes only before closing.
-- One currency per deal; one investment and one exit, with the same terms for every investor.
+- One currency per deal; one investment and one exit. Each investor can have their own fee terms and carry rate; the hurdle, catch-up and years held are the same for the whole deal. Not covered: staged capital calls, earlier distributions and management fees.
 - No S/EIS eligibility decisions (schemes are labels you enter) and no legal or tax advice.
 - The sample deal is made up.
 

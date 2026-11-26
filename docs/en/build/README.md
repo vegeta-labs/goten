@@ -30,4 +30,4 @@ When you work with an AI coding agent:
 - Have the agent run the checks in [Verification](verification.md) before you rely on a change.
 - Keep money calculations in `src/lib` and whole-number arithmetic throughout, as described in [Architecture](architecture.md). Keep the Python oracle independent: if a rule changes, rewrite it from the written rules rather than from the TypeScript.
 
-Limits that matter when you extend it: one currency per deal, one investment and one exit, the same terms for every investor. See the [README](../../../README.md) for scope and the [requirements](../01_PRD.md) for the full rule list. What each release contains is in the [release notes](../../RELEASE_NOTES.md).
+Limits that matter when you extend it: one currency per deal, one investment and one exit. Each investor can have their own fee terms and carry rate; the hurdle, catch-up and years held are the same for the whole deal. See the [README](../../../README.md) for scope and the [requirements](../01_PRD.md) for the full rule list. What each release contains is in the [release notes](../../RELEASE_NOTES.md).
