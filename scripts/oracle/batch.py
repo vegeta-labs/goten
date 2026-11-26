@@ -10,7 +10,7 @@ import oracle  # noqa: E402
 def stringify_big(out):
     if isinstance(out, dict) and isinstance(out.get('investors'), dict):
         for v in out['investors'].values():
-            if isinstance(v, dict) and 'microShares' in v:
+            if isinstance(v, dict) and isinstance(v.get('microShares'), int):
                 v['microShares'] = str(v['microShares'])
     return out
 

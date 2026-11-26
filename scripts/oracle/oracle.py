@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Independent reference implementation ("oracle") of the Goten — Deal Calculations engines.
 
-Written from the PRD §5.0-5.4 (v0.8: C-REC-7, C-ALL-10, C-ALL-11; Chinese source of truth, English snapshot in
-docs/en/01_PRD.md), the test plan and scripts/oracle/SCHEMA.md only.
+Written from the PRD §5.0-5.4 (v0.8: C-REC-7, C-ALL-10, C-ALL-11; v0.9 decision J:
+C-ALL-0, C-ALL-9a/9b, C-ALL-12, C-REC-4/9, C-DIS-8/9; Chinese source of truth, English snapshot in
+docs/en/01_PRD.md), the test plan, docs/formats/allocation-handoff-v1.md and scripts/oracle/SCHEMA.md only.
 Usage: python3 scripts/oracle/oracle.py <case.json>
 
 All money is integer minor units, rates are basis points, prices are micros,
@@ -21,7 +22,13 @@ BP = 10000
 
 
 class Invalid(Exception):
-    pass
+    """Input error (C-03). v0.9: optional `code` / `investor` are reported next to ok:false
+    (only for v0.9 rules, so old invalid outputs stay exactly {"ok": false})."""
+
+    def __init__(self, msg="", code=None, investor=None):
+        Exception.__init__(self, msg)
+        self.code = code
+        self.investor = investor
 
 
 # ---------------------------------------------------------------- helpers
@@ -76,7 +83,71 @@ MONEY_MAX = 100000000000  # 1,000,000,000.00 in minor units (I-01)
 
 # ---------------------------------------------------------------- allocation
 
+def parse_platform_fee(pf):
+    """C-ALL-9b settings (v0.9). None = no platform fee."""
+    if pf is None:
+        return None
+    if not isinstance(pf, dict):
+        raise Invalid("platformFee")
+    rate = need_int(pf.get("rate"), 0, BP)
+    mn = need_int(pf.get("minimum", 0) if pf.get("minimum") is not None else 0, 0, MONEY_MAX)
+    mx = pf.get("maximum")
+    if mx is not None:
+        need_int(mx, 0, MONEY_MAX)
+        if mn > mx:
+            raise Invalid("platform fee minimum > maximum")
+    thr = pf.get("addOnThreshold")
+    add = pf.get("addOnRate")
+    if thr is not None:
+        need_int(thr, 0, MONEY_MAX)
+        need_int(add, 0, BP)
+    else:
+        if add not in (None, 0):
+            raise Invalid("add-on rate without threshold")
+        add = 0
+    payer = pf.get("payer")
+    if payer not in ("investors", "lead", "company"):
+        raise Invalid("platform fee payer")
+    return {"rate": rate, "minimum": mn, "maximum": mx, "threshold": thr, "addOn": add, "payer": payer}
+
+
+def platform_fee_amount(pf, B):
+    """C-ALL-9b: halfUp(min(max, max(min, B x rate))) + halfUp(max(0, B - threshold) x add-on rate);
+    each part rounded separately."""
+    first = max(Fraction(pf["minimum"]), Fraction(B * pf["rate"], BP))
+    if pf["maximum"] is not None:
+        first = min(Fraction(pf["maximum"]), first)
+    second = 0
+    if pf["threshold"] is not None:
+        second = half_up(Fraction(max(0, B - pf["threshold"]) * pf["addOn"], BP))
+    return half_up(first) + second
+
+
+def parse_own_terms(t, iid):
+    """C-ALL-0: returns (mode, p, F, kind) where kind is 'percent' | 'fixed' | None."""
+    if not isinstance(t, dict):
+        raise Invalid("ownTerms")
+    mode = t.get("mode")
+    if mode not in ("deducted", "onTop"):
+        raise Invalid("own fee mode")
+    fee = t.get("fee")
+    if fee is None:
+        return (mode, 0, 0, None)
+    kind = fee.get("kind")
+    if kind == "percent":
+        f = need_int(fee.get("value"), 0, BP)
+        if mode == "deducted" and f >= BP:
+            raise Invalid("own rate >= 100% deducted", code="own-rate-100", investor=iid)
+        return (mode, f, 0, "percent")
+    if kind == "fixed":
+        return (mode, 0, need_int(fee.get("value"), 1, MONEY_MAX), "fixed")
+    raise Invalid("own fee kind")
+
+
 def allocation(case):
+    investors = case.get("investors") or []
+    extended = ("instrument" in case or "platformFee" in case
+                or any(isinstance(inv, dict) and "ownTerms" in inv for inv in investors))
     basis = case.get("feeBasis")
     if basis not in ("deducted", "onTop"):
         raise Invalid("feeBasis")
@@ -87,7 +158,15 @@ def allocation(case):
     cap = case.get("cap")
     if cap is not None:
         need_int(cap, 1, MONEY_MAX)
-    price = need_int(case.get("priceMicros"), 1, 1000000 * 1000000)
+    instrument = case.get("instrument", "equity")
+    if instrument == "equity":
+        price = need_int(case.get("priceMicros"), 1, 1000000 * 1000000)
+    elif instrument in ("convertible", "fund_units"):
+        if case.get("priceMicros") is not None:  # R-DEAL-06
+            raise Invalid("share price must be empty", code="share-price-not-empty")
+        price = None
+    else:
+        raise Invalid("instrument")
 
     fees = case.get("fees") or []
     if len(fees) > 20:
@@ -115,15 +194,16 @@ def allocation(case):
     inv_pct = [f for f in fees if f["payer"] == "investors" and f["kind"] == "percent"]
     inv_fix = [f for f in fees if f["payer"] == "investors" and f["kind"] == "perInvestor"]
     inv_fee_ids = [f["id"] for f in fees if f["payer"] == "investors"]
-    p = sum(f["value"] for f in inv_pct)
-    F = sum(f["value"] for f in inv_fix)
-    if basis == "deducted" and p >= BP:
+    p_deal = sum(f["value"] for f in inv_pct)
+    F_deal = sum(f["value"] for f in inv_fix)
+    if basis == "deducted" and p_deal >= BP:
         raise Invalid("investor percent fees >= 100% on deducted basis")
+    pf = parse_platform_fee(case.get("platformFee"))
 
-    investors = case.get("investors") or []
     if len(investors) > 500:
         raise Invalid("more than 500 investors (I-08)")
     ids = set()
+    terms = {}  # id -> (mode, p, F, own, ownKind)
     for inv in investors:
         if not isinstance(inv.get("id"), str) or inv["id"] in ids:
             raise Invalid("investor id")
@@ -131,31 +211,51 @@ def allocation(case):
         need_int(inv.get("received"), 0, MONEY_MAX)
         if inv.get("scheme", "none") not in ("none", "SEIS", "EIS"):
             raise Invalid("scheme")
-
-    def commitment_basis_ok(R, M):
-        amt = R if basis == "deducted" else M
-        return amt >= minimum
-
-    # C-ALL-1 / C-ALL-2
-    M_of = {}
-    for inv in investors:
-        R = inv["received"]
-        if R <= F:
-            continue
-        if basis == "deducted":
-            M = floor_frac(Fraction((R - F) * (BP - p), BP))
+        if inv.get("ownTerms") is not None:
+            mode, p_i, F_i, k_i = parse_own_terms(inv["ownTerms"], inv["id"])
+            terms[inv["id"]] = (mode, p_i, F_i, True, k_i)
         else:
-            M = floor_frac(Fraction((R - F) * BP, BP + p))
-        if M <= 0:
+            terms[inv["id"]] = (basis, p_deal, F_deal, False, None)
+
+    def M_of_R(iid, R):
+        mode, p, F = terms[iid][:3]
+        if mode == "deducted":
+            return floor_frac(Fraction((R - F) * (BP - p), BP))
+        return floor_frac(Fraction((R - F) * BP, BP + p))
+
+    # C-ALL-1 / C-ALL-2 (each person's own mode, p, F: C-ALL-0)
+    M_of = {}
+    exclusion = {}
+    for inv in investors:
+        iid, R = inv["id"], inv["received"]
+        mode, p, F = terms[iid][:3]
+        if R == 0:
+            exclusion[iid] = "no-funds"
             continue
-        if not commitment_basis_ok(R, M):
+        if R <= F:
+            exclusion[iid] = "fees-exceed-receipt"
             continue
-        M_of[inv["id"]] = M
+        M = M_of_R(iid, R)
+        if M <= 0:  # format v1 §3: M <= 0 under C-ALL-1 counts as fees-exceed-receipt
+            exclusion[iid] = "fees-exceed-receipt"
+            continue
+        amt = R if mode == "deducted" else M
+        if amt < minimum:
+            exclusion[iid] = "below-minimum"
+            continue
+        M_of[iid] = M
 
     part_ids = [inv["id"] for inv in investors if inv["id"] in M_of]
     blockers = set()
+    bl_ids = {}
 
-    # C-ALL-3
+    def block(code, iid=None):
+        blockers.add(code)
+        lst = bl_ids.setdefault(code, [])
+        if iid is not None and iid not in lst:
+            lst.append(iid)
+
+    # C-ALL-3 (v0.9: commitment basis per person, exact fractions)
     T_of = dict(M_of)
     msum = sum(M_of.values())
     if cap is not None and msum > cap:
@@ -163,79 +263,160 @@ def allocation(case):
         T_of = dict(zip(part_ids, split))
         for i in part_ids:
             T = T_of[i]
-            if basis == "deducted":
+            mode, p, F = terms[i][:3]
+            if mode == "deducted":
                 amt = Fraction(T * BP, BP - p) + F
             else:
                 amt = Fraction(T)
             if amt < minimum:
-                blockers.add("scale-back-below-minimum")
+                block("scale-back-below-minimum", i)
 
-    def pct_fee(I, rate):
-        if basis == "deducted":
-            return half_up(Fraction(I * rate, BP - p))
-        return half_up(Fraction(I * rate, BP))
+    def person_fees(iid, I):
+        """C-ALL-4 / C-ALL-6 for one person; I = T before the platform fee."""
+        mode, p, F, own, kind = terms[iid]
+
+        def pct(rate):
+            if mode == "deducted":
+                return half_up(Fraction(I * rate, BP - p))
+            return half_up(Fraction(I * rate, BP))
+        if own:
+            if kind == "percent":
+                return {"__own__": pct(p)}
+            return {"__own__": F}
+        fmap = {}
+        for f in fees:
+            if f["payer"] != "investors":
+                continue
+            fmap[f["id"]] = pct(f["value"]) if f["kind"] == "percent" else f["value"]
+        return fmap
+
+    res_of = {}
+    for inv in investors:
+        iid, R = inv["id"], inv["received"]
+        if iid not in T_of:
+            continue
+        I = T_of[iid]
+        res = None
+        while I > 0:  # C-ALL-7
+            fmap = person_fees(iid, I)
+            refund = R - I - sum(fmap.values())
+            if refund >= 0:
+                res = (I, fmap, refund)
+                break
+            I -= 1
+        if res is None:
+            exclusion[iid] = "zero-investment"
+        else:
+            res_of[iid] = res
+    final_ids = [i for i in part_ids if i in res_of]
+
+    # C-ALL-9b platform fee (v0.9)
+    B = sum(res_of[i][0] for i in final_ids)
+    pf_amount = None
+    S_of = {i: 0 for i in final_ids}
+    pf_blocked = False
+    if pf is not None and B > 0:
+        pf_amount = platform_fee_amount(pf, B)
+        if pf["payer"] == "investors":
+            shares = largest_remainder(pf_amount, [res_of[i][0] for i in final_ids])
+            S_of = dict(zip(final_ids, shares))
+            if pf_amount > B or any(S_of[i] >= res_of[i][0] for i in final_ids):
+                pf_blocked = True
+                block("platform-fee-exceeds")
+                for i in final_ids:
+                    if S_of[i] >= res_of[i][0]:
+                        block("platform-fee-exceeds", i)
 
     out_inv = {}
     total_invested = 0
     fee_totals = {f["id"]: 0 for f in fees}
+    own_fee_total = 0
+    refund_total = 0
     n_part = 0
     for inv in investors:
         iid, R = inv["id"], inv["received"]
-        res = None
-        if iid in T_of:
-            I = T_of[iid]
-            while I > 0:
-                fmap = {}
-                for f in fees:
-                    if f["payer"] != "investors":
-                        continue
-                    fmap[f["id"]] = pct_fee(I, f["value"]) if f["kind"] == "percent" else f["value"]
-                refund = R - I - sum(fmap.values())
-                if refund >= 0:
-                    res = (I, fmap, refund)
-                    break
-                I -= 1
-        if res is None:
+        own = terms[iid][3]
+        if iid not in res_of:
+            refund_total += R
             out_inv[iid] = {
                 "participating": False, "invested": 0, "fees": {}, "refund": R,
-                "microShares": 0, "claimableShares": 0, "claimableAmount": 0,
+                "microShares": 0 if price else None, "claimableShares": 0 if price else None,
+                "claimableAmount": 0 if price else None,
             }
+            if extended:
+                out_inv[iid].update({"target": 0, "ownFee": 0 if own else None, "platformFeeShare": 0,
+                                     "exclusion": exclusion[iid]})
             continue
-        I, fmap, refund = res
+        T, fmap, refund = res_of[iid]
+        S = S_of[iid]
+        I = T - S
         n_part += 1
         total_invested += I
+        refund_total += refund
+        own_fee = None
         for k, v in fmap.items():
-            fee_totals[k] += v
-        claim_sh = (I * BP) // price
+            if k == "__own__":
+                own_fee = v
+                own_fee_total += v
+            else:
+                fee_totals[k] += v
+        if price is None:
+            ms = cs = ca = None
+        elif I <= 0:
+            ms = cs = ca = 0
+        else:
+            cs = (I * BP) // price
+            ms = (I * BP * 1000000) // price
+            ca = (cs * price) // BP
         out_inv[iid] = {
             "participating": True,
             "invested": I,
-            "fees": {k: fmap[k] for k in inv_fee_ids},
+            "fees": {} if own else {k: fmap[k] for k in inv_fee_ids},
             "refund": refund,
-            "microShares": (I * BP * 1000000) // price,
-            "claimableShares": claim_sh,
-            "claimableAmount": (claim_sh * price) // BP,
+            "microShares": ms,
+            "claimableShares": cs,
+            "claimableAmount": ca,
         }
+        if extended:
+            out_inv[iid].update({"target": T, "ownFee": own_fee, "platformFeeShare": S, "exclusion": None})
 
-    # C-ALL-9
+    # C-ALL-9a (not computed when the platform fee blocks)
     company_fees = 0
     lead_invoice = 0
-    for f in fees:
-        if f["payer"] == "investors":
-            continue
-        amt = half_up(Fraction(total_invested * f["value"], BP)) if f["kind"] == "percent" else f["value"]
-        fee_totals[f["id"]] = amt
-        if f["payer"] == "company":
-            company_fees += amt
-        else:
-            lead_invoice += amt
-    wire = total_invested - company_fees
-    if wire < 0:
-        blockers.add("company-fees-exceed")
+    wire = None
+    if pf_blocked:
+        for f in fees:
+            if f["payer"] != "investors":
+                fee_totals[f["id"]] = None
+        company_fees = lead_invoice = None
+    else:
+        for f in fees:
+            if f["payer"] == "investors":
+                continue
+            amt = half_up(Fraction(total_invested * f["value"], BP)) if f["kind"] == "percent" else f["value"]
+            fee_totals[f["id"]] = amt
+            if f["payer"] == "company":
+                company_fees += amt
+            else:
+                lead_invoice += amt
+        if pf_amount is not None and pf["payer"] == "company":
+            company_fees += pf_amount
+        if pf_amount is not None and pf["payer"] == "lead":
+            lead_invoice += pf_amount
+        wire = total_invested - company_fees
+        if wire < 0:
+            block("company-fees-exceed")
     if n_part == 0:
-        blockers.add("no-participants")
+        block("no-participants")
 
-    return {
+    # arithmetic check (C-ALL-9b): sum R = sum I + cash fees + investor platform fee + refunds
+    received_total = sum(inv["received"] for inv in investors)
+    cash_fees = own_fee_total + sum(v for k, v in fee_totals.items() if k in inv_fee_ids)
+    inv_pf = pf_amount if (pf_amount is not None and pf["payer"] == "investors") else 0
+    if received_total != total_invested + cash_fees + inv_pf + refund_total:
+        raise ArithmeticFail("allocation identity")
+
+    out = {
         "ok": True,
         "investors": out_inv,
         "feeTotals": fee_totals,
@@ -245,6 +426,15 @@ def allocation(case):
         "wire": wire,
         "blockers": sorted(blockers),
     }
+    if extended:
+        out.update({
+            "blockerIds": {k: bl_ids.get(k, []) for k in sorted(blockers)},
+            "platformFee": None if pf_amount is None else {"amount": pf_amount, "base": B, "payer": pf["payer"]},
+            "received": received_total,
+            "investorFees": cash_fees,
+            "refunds": refund_total,
+        })
+    return out
 
 
 # ---------------------------------------------------------------- fee payer change (C-ALL-10, v0.8)
@@ -253,20 +443,32 @@ class ArithmeticFail(Exception):
     """C-03 'arithmetic check failed' (internal error): never caught by run()."""
 
 
-def _alloc_case(case, fees, investors, minimum=None, cap="same"):
-    return {
+def _alloc_case(case, fees, investors, minimum=None, cap="same", platform=True):
+    out = {
         "kind": "allocation", "feeBasis": case.get("feeBasis"),
         "minimum": case.get("minimum", 0) if minimum is None else minimum,
         "cap": case.get("cap") if cap == "same" else cap,
         "priceMicros": case.get("priceMicros"), "fees": fees,
         "investors": investors,
     }
+    # v0.9: instrument and (in steps 1 and 3 only) the pro-rata platform fee pass through
+    if "instrument" in case:
+        out["instrument"] = case["instrument"]
+    if platform and "platformFee" in case:
+        out["platformFee"] = case["platformFee"]
+    return out
+
+
+def _target(v):
+    """T before the platform fee (v0.9 C-ALL-10); equals `invested` for old inputs."""
+    return v.get("target", v["invested"])
 
 
 def single_invested(case, fees, R):
     """I(R): C-ALL-1, C-ALL-4, C-ALL-6, C-ALL-7 for one investor under `fees`,
     ignoring cap and minimum (minimum 0, no cap). Reuses allocation()."""
-    out = allocation(_alloc_case(case, fees, [{"id": "x", "received": R, "scheme": "none"}], minimum=0, cap=None))
+    out = allocation(_alloc_case(case, fees, [{"id": "x", "received": R, "scheme": "none"}], minimum=0, cap=None,
+                                 platform=False))
     return out["investors"]["x"]["invested"]
 
 
@@ -315,6 +517,9 @@ def fee_payer_change(case):
     fees2 = [dict(f, payer=new_payer) if f.get("id") == fee_id else f for f in fees]
 
     investors = case.get("investors") or []
+    # v0.9 R-ALL-12.1: unavailable when anyone in scope has own fee terms (carry alone does not count)
+    if any(isinstance(inv, dict) and inv.get("ownTerms") is not None for inv in investors):
+        return {"ok": True, "disabled": "own-fee-terms"}
     ids = []
     for inv in investors:
         iid = inv.get("id")
@@ -342,7 +547,7 @@ def fee_payer_change(case):
         m_sum = sum(_m_of(case, fees, due[i]) for i in ids if _m_of_participates(case, fees, due[i]))
         if case.get("cap") is not None and m_sum > case["cap"]:
             blockers.add(("over-cap", ""))
-        target = {i: a1["investors"][i]["invested"] for i in ids if part1[i]}
+        target = {i: _target(a1["investors"][i]) for i in ids if part1[i]}
     else:
         tg = applied.get("targets") or {}
         nd = applied.get("newCashDue") or {}
@@ -387,13 +592,15 @@ def fee_payer_change(case):
             blockers.add(("would-fall-below-minimum" if below else "would-leave", i))
         elif not part1[i] and v["participating"]:
             blockers.add(("would-join", i))
-        elif part1[i] and v["invested"] != target[i]:
+        elif part1[i] and _target(v) != target[i]:
             blockers.add(("invested-differs", i))
         out_inv[i] = {
             "cashDue": due[i], "participatingBefore": part1[i], "unchanged": not part1[i],
             "target": target[i] if part1[i] else None, "newCashDue": N[i], "difference": N[i] - due[i],
             "participatingAfter": v["participating"], "investedAfter": v["invested"],
         }
+        if "target" in v:  # v0.9 extended allocation: also report step-3 T before the platform fee
+            out_inv[i]["targetAfter"] = v["target"]
     return _fpc_out(blockers, out_inv, ids, due, fee_before, a3["feeTotals"][fee_id], True)
 
 
@@ -465,14 +672,61 @@ def hurdle_amount(C, h, n100):
     return m
 
 
+def _fixed_steps(C, D, k, h, c, n100):
+    """C-DIS-1..5 fixed mode on capital C and distributable D; returns
+    (returnOfCapital, hurdlePaid, catchUpTranche, catchUpToLead, carry)."""
+    roc = min(D, C)
+    profit = D - roc
+    hurdle_paid = tranche = to_lead_cu = 0
+    remaining = profit
+    if h > 0 and profit > 0:
+        P = hurdle_amount(C, h, n100)
+        hurdle_paid = min(remaining, P)
+        remaining -= hurdle_paid
+        if c > 0 and k > 0:  # v0.9 C-DIS-8: k_i = 0 skips catch-up (for old inputs k > 0 whenever c > 0)
+            Y = half_up(Fraction(k * hurdle_paid, c - k))
+            tranche = min(remaining, Y)
+            to_lead_cu = half_up(Fraction(tranche * c, BP))
+            remaining -= tranche
+    carry = to_lead_cu + half_up(Fraction(remaining * k, BP))
+    return roc, hurdle_paid, tranche, to_lead_cu, carry
+
+
+def _payees(case, K):
+    """C-DIS-9: split K by payee shares (largest remainder, ties to the earlier payee)."""
+    payees = case.get("payees")
+    if payees is None:
+        return [{"name": "Lead", "amount": K}]
+    if not isinstance(payees, list) or not 1 <= len(payees) <= 20:
+        raise Invalid("payees", code="payee-count")
+    for py in payees:
+        name = py.get("name")
+        if not isinstance(name, str) or not 1 <= utf16_len(name) <= 120:
+            raise Invalid("payee name", code="payee-name")
+        need_int(py.get("share"), 0, BP)
+        if py["share"] <= 0:
+            raise Invalid("payee share 0", code="payee-share-zero")
+    if sum(py["share"] for py in payees) != BP:
+        raise Invalid("Payee shares must add up to 100%", code="payee-sum")
+    split = largest_remainder(K, [py["share"] for py in payees])
+    return [{"name": py["name"], "amount": v} for py, v in zip(payees, split)]
+
+
+def utf16_len(s):
+    return len(s.encode("utf-16-le", "surrogatepass")) // 2
+
+
 def waterfall(case):
     holdings = case.get("holdings") or []
+    extended = "payees" in case or any(isinstance(hh, dict) and "carry" in hh for hh in holdings)
     ids = set()
     for h in holdings:
         if not isinstance(h.get("id"), str) or h["id"] in ids:
             raise Invalid("holding id")
         ids.add(h["id"])
         need_int(h.get("capital"), 1, MONEY_MAX)
+        if h.get("carry") is not None:
+            need_int(h["carry"], 0, BP)
     C = sum(h["capital"] for h in holdings)
     if C <= 0:
         raise Invalid("total capital must be > 0")
@@ -483,12 +737,15 @@ def waterfall(case):
     need_int(E, 0, MONEY_MAX)
     n100 = need_int(case.get("years100"), 0, 5000)
 
+    own = [hh.get("carry") for hh in holdings]
     carry_cfg = case.get("carry") or {}
     mode = carry_cfg.get("mode")
+    per_k = None          # list of k_i when C-DIS-8 applies
+    tiered_notice = None  # C-DIS-8 first bullet
     if mode == "fixed":
         if "tiers" in carry_cfg:
             raise Invalid("tiers in fixed mode")
-        k = need_int(carry_cfg.get("k"), 0, BP)
+        k_deal = need_int(carry_cfg.get("k"), 0, BP)
         h = carry_cfg.get("h", 0)
         c = carry_cfg.get("c", 0)
         h = 0 if h is None else h
@@ -497,8 +754,17 @@ def waterfall(case):
         need_int(c, 0, BP)
         if h == 0 and c != 0:
             raise Invalid("catch-up without hurdle")
-        if h > 0 and c > 0 and not (k < c <= BP):
-            raise Invalid("catch-up must satisfy k < c <= 100%")
+        used = [k_deal if x is None else x for x in own]  # blanks -> deal k (C-DIS preamble)
+        if len(set(used)) <= 1:
+            k = used[0] if used else k_deal
+            if h > 0 and c > 0 and not (k < c <= BP):
+                raise Invalid("catch-up must satisfy k < c <= 100%")
+        else:
+            per_k = used
+            if h > 0 and c > 0:
+                for hh, ki in zip(holdings, used):  # C-DIS-8: per person, only k_i > 0
+                    if ki > 0 and not (ki < c <= BP):
+                        raise Invalid("catch-up must satisfy k_i < c", code="catch-up-k", investor=hh["id"])
     elif mode == "tiered":
         for key in ("k", "h", "c"):
             if carry_cfg.get(key) is not None:
@@ -519,8 +785,28 @@ def waterfall(case):
                 if up <= prev:
                     raise Invalid("tier multiples must strictly increase and be > 1")
                 prev = up
+        filled = [x for x in own if x is not None]
+        if filled and len(filled) != len(own):
+            raise Invalid("Fill in every investor's carry, or none, for tiered carry", code="tiered-carry-mixed")
+        if filled and len(set(filled)) > 1:
+            raise Invalid("Tiered carry needs the same carry for every investor", code="tiered-carry-differs")
+        if filled:
+            tiered_notice = filled[0]
     else:
         raise Invalid("carry mode")
+
+    def finish(out, K, carry_used):
+        if extended:
+            out["payees"] = _payees(case, K)
+            out["perInvestor"] = out.get("perInvestor")
+            out["tieredNotice"] = tiered_notice
+            out["carryUsed"] = carry_used
+        return out
+
+    # carry column of the exit CSV (§5.5): fixed mode and someone filled a carry -> k actually used
+    carry_used = None
+    if mode == "fixed" and any(x is not None for x in own):
+        carry_used = {hh["id"]: ki for hh, ki in zip(holdings, [k_deal if x is None else x for x in own])}
 
     zero = {
         "ok": True, "blockers": [], "shortfall": 0, "costsPaid": 0,
@@ -532,9 +818,35 @@ def waterfall(case):
         zero["blockers"] = ["exit-cost-shortfall"]
         zero["shortfall"] = E - G
         zero["costsPaid"] = G
+        if extended:
+            zero["perInvestor"] = None
+            out = finish(zero, 0, carry_used)
+            out["payees"] = None
+            return out
         return zero
 
     D = G - E
+    if per_k is not None:
+        # C-DIS-8: split D by capital, then each person's own fixed waterfall with the deal's h, n, c
+        Ds = largest_remainder(D, [hh["capital"] for hh in holdings])
+        per = {}
+        tot = [0, 0, 0, 0, 0]
+        dist = {}
+        for hh, Di, ki in zip(holdings, Ds, per_k):
+            r = _fixed_steps(hh["capital"], Di, ki, h, c, n100)
+            tot = [a + b for a, b in zip(tot, r)]
+            dist[hh["id"]] = Di - r[4]
+            per[hh["id"]] = {"distributable": Di, "k": ki, "returnOfCapital": r[0], "hurdlePaid": r[1],
+                             "catchUpTranche": r[2], "catchUpToLead": r[3], "carry": r[4],
+                             "distribution": Di - r[4]}
+        out = {
+            "ok": True, "blockers": [], "shortfall": 0, "costsPaid": E,
+            "returnOfCapital": tot[0], "hurdlePaid": tot[1], "catchUpTranche": tot[2],
+            "catchUpToLead": tot[3], "carry": tot[4], "investorsTotal": D - tot[4],
+            "distributions": dist, "perInvestor": per,
+        }
+        return finish(out, tot[4], carry_used)
+
     roc = min(D, C)
     profit = D - roc
     hurdle_paid = 0
@@ -543,17 +855,7 @@ def waterfall(case):
     carry = 0
 
     if mode == "fixed":
-        remaining = profit
-        if h > 0 and profit > 0:
-            P = hurdle_amount(C, h, n100)
-            hurdle_paid = min(remaining, P)
-            remaining -= hurdle_paid
-            if c > 0:
-                Y = half_up(Fraction(k * hurdle_paid, c - k))
-                tranche = min(remaining, Y)
-                to_lead_cu = half_up(Fraction(tranche * c, BP))
-                remaining -= tranche
-        carry = to_lead_cu + half_up(Fraction(remaining * k, BP))
+        roc, hurdle_paid, tranche, to_lead_cu, carry = _fixed_steps(C, D, k, h, c, n100)
     else:
         prev_b = 0
         for idx, t in enumerate(tiers):
@@ -567,13 +869,16 @@ def waterfall(case):
 
     investors_total = D - carry
     split = largest_remainder(investors_total, [hh["capital"] for hh in holdings])
-    return {
+    out = {
         "ok": True, "blockers": [], "shortfall": 0, "costsPaid": E,
         "returnOfCapital": roc, "hurdlePaid": hurdle_paid,
         "catchUpTranche": tranche, "catchUpToLead": to_lead_cu,
         "carry": carry, "investorsTotal": investors_total,
         "distributions": {hh["id"]: v for hh, v in zip(holdings, split)},
     }
+    if extended:
+        out["perInvestor"] = None
+    return finish(out, carry, carry_used)
 
 
 # ---------------------------------------------------------------- reconcile
@@ -719,6 +1024,23 @@ def reconcile(case):
         need_int(v, 1, MONEY_MAX)
     withdrawn = set(withdrawn)
 
+    # v0.9 (C-REC-4, C-REC-9): optional per-commitment `refunded` and `refundOnly`
+    v09 = any("refunded" in c or "refundOnly" in c for c in commitments)
+    if v09:
+        extended = True
+    refunded = {}
+    refund_only = {}
+    for c in commitments:
+        rf = c.get("refunded")
+        refunded[c["id"]] = 0 if rf is None else need_int(rf, 0, MONEY_MAX)
+        ro = c.get("refundOnly")
+        if ro not in (None, "withdrawn", "closed"):
+            raise Invalid("refundOnly")
+        refund_only[c["id"]] = ro
+    # a refund_only flag overrides the manual withdrawal while it exists (C-REC-9)
+    manual_w = {cid for cid in withdrawn if refund_only.get(cid) is None}
+    out_of_scope = manual_w | {cid for cid in cids if refund_only.get(cid)}
+
     def eff_due(c):
         return adjusted.get(c["id"], c["cashDue"])
 
@@ -792,7 +1114,7 @@ def reconcile(case):
                     s += Fraction(1, 4)
             s += name_similarity(ln.get("payer"), c.get("name")) * Fraction(3, 10)
             due = eff_due(c)
-            owe = due - booked.get(c["id"], 0)
+            owe = due - (booked.get(c["id"], 0) - refunded[c["id"]])  # v0.9: net received
             if ln["amount"] == due or (owe > 0 and ln["amount"] == owe):
                 s += Fraction(1, 4)
             s = min(s, Fraction(1))
@@ -821,11 +1143,20 @@ def reconcile(case):
             # not aged; its money still counts as unbooked.
             aged.append(ln["id"])
 
+    def net(cid):
+        return booked.get(cid, 0) - refunded[cid]
+
     out_c = {}
     for c in commitments:
-        r = booked.get(c["id"], 0)
+        r = net(c["id"])
         diff = r - eff_due(c)
-        if c["id"] in withdrawn:
+        if v09 and r < 0:
+            st = "check-refunds"
+        elif v09 and refund_only[c["id"]] == "withdrawn":
+            st = "withdrawn-imported"
+        elif v09 and refund_only[c["id"]] == "closed":
+            st = "closed-refund-only"
+        elif c["id"] in withdrawn:
             st = "withdrawn"
         elif r == 0:
             st = "outstanding"
@@ -838,6 +1169,9 @@ def reconcile(case):
         out_c[c["id"]] = {"received": r, "difference": diff, "status": st}
         if extended:
             out_c[c["id"]].update({"cashDue": eff_due(c), "withdrawn": c["id"] in withdrawn})
+        if v09:
+            out_c[c["id"]].update({"booked": booked.get(c["id"], 0), "refunded": refunded[c["id"]],
+                                   "refundOnly": refund_only[c["id"]]})
 
     out_l = {}
     for ln in lines:
@@ -850,7 +1184,7 @@ def reconcile(case):
         "totals": {"bank": bank, "booked": booked_total, "unbooked": bank - booked_total},
         "aged": sorted(aged),
     }
-    if extended:
+    if extended and not v09:
         refunds, chase, handoff = [], [], {}
         for c in commitments:
             cid, r, due = c["id"], booked.get(c["id"], 0), eff_due(c)
@@ -879,7 +1213,405 @@ def reconcile(case):
             "handoff": handoff,
             "checks": {"refundIdentity": identity == refund_total},
         })
+    elif v09:
+        # v0.9: everything on net received (C-REC-4); refund_only people as withdrawn ones (C-REC-9)
+        refunds, chase, handoff, blocked = [], [], {}, []
+        for c in commitments:
+            cid, r, due = c["id"], net(c["id"]), eff_due(c)
+            if r < 0:
+                blocked.append(cid)  # "Check refunds": hand-off blocked, never treated as 0
+            if cid in out_of_scope:
+                if r > 0:
+                    reason = "refund-only" if refund_only[cid] == "closed" else "withdrawn"
+                    refunds.append({"id": cid, "amount": r, "reason": reason})
+                continue
+            if r > due:
+                refunds.append({"id": cid, "amount": r - due, "reason": "overpayment"})
+            if 0 <= r < due:
+                chase.append({"id": cid, "outstanding": due - r})
+            if r >= 0:
+                handoff[cid] = min(r, due)
+        refund_total = sum(x["amount"] for x in refunds)
+        identity = (sum(max(0, net(cid)) for cid in cids if cid in out_of_scope)
+                    + sum(max(0, net(c["id"]) - eff_due(c)) for c in commitments if c["id"] not in out_of_scope))
+        if identity != refund_total:
+            raise ArithmeticFail("refund total identity")
+        w_refund = sum(x["amount"] for x in refunds if x["reason"] in ("withdrawn", "refund-only"))
+        result.update({
+            "refunds": refunds,
+            "refundTotal": refund_total,
+            "receivable": sum(eff_due(c) for c in commitments if c["id"] not in out_of_scope),
+            "withdrawnSummary": {"count": len(out_of_scope), "refund": w_refund},
+            "chase": chase,
+            "handoff": handoff,
+            "handoffBlockedBy": blocked,
+            "checks": {"refundIdentity": identity == refund_total},
+        })
     return result
+
+
+# ---------------------------------------------------------------- hand-off (C-ALL-12, v0.9)
+
+ENGINE = "goten-rules/0.9"
+NUM_RE = re.compile(r"0|[1-9][0-9]*")
+WORD_RE = re.compile(r"[a-z_]{1,40}")
+
+
+def jcs_string(st):
+    """allocation-handoff-v1 §4 rule 3."""
+    out = ['"']
+    for ch in st:
+        o = ord(ch)
+        if ch == '"':
+            out.append('\\"')
+        elif ch == "\\":
+            out.append("\\\\")
+        elif ch == "\b":
+            out.append("\\b")
+        elif ch == "\f":
+            out.append("\\f")
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\r":
+            out.append("\\r")
+        elif ch == "\t":
+            out.append("\\t")
+        elif o < 0x20:
+            out.append("\\u%04x" % o)
+        else:
+            out.append(ch)
+    out.append('"')
+    return "".join(out)
+
+
+def canonical(v):
+    """RFC 8785 reduced to strings / objects / arrays / null (§4)."""
+    if v is None:
+        return "null"
+    if isinstance(v, str):
+        return jcs_string(v)
+    if isinstance(v, list):
+        return "[" + ",".join(canonical(x) for x in v) + "]"
+    if isinstance(v, dict):
+        keys = sorted(v, key=lambda k: k.encode("utf-16-be", "surrogatepass"))
+        return "{" + ",".join(jcs_string(k) + ":" + canonical(v[k]) for k in keys) + "}"
+    raise Invalid("non-string value in projection")
+
+
+def projection_hash(projection):
+    import hashlib
+    data = canonical(projection).encode("utf-8")
+    return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
+class _Dup(Exception):
+    pass
+
+
+def _pairs(pairs):
+    d = {}
+    for k, v in pairs:
+        if k in d:
+            raise _Dup(k)
+        d[k] = v
+    return d
+
+
+def _has_lone_surrogate(v):
+    if isinstance(v, str):
+        return any(0xD800 <= ord(ch) <= 0xDFFF for ch in v)
+    if isinstance(v, list):
+        return any(_has_lone_surrogate(x) for x in v)
+    if isinstance(v, dict):
+        return any(_has_lone_surrogate(k) or _has_lone_surrogate(x) for k, x in v.items())
+    return False
+
+
+def _num(errs, where, v, lo=0, hi=None):
+    if not isinstance(v, str) or not NUM_RE.fullmatch(v):
+        errs.append("number: " + where)
+        return None
+    n = int(v)
+    if n < lo or (hi is not None and n > hi):
+        errs.append("range: " + where)
+        return None
+    return n
+
+
+def _keys(errs, where, obj, required, optional=()):
+    if not isinstance(obj, dict):
+        errs.append("object: " + where)
+        return False
+    for k in obj:
+        if k not in required and k not in optional:
+            errs.append("unknown-field: %s.%s" % (where, k))
+    for k in required:
+        if k not in obj:
+            errs.append("missing-field: %s.%s" % (where, k))
+    return True
+
+
+def _text(errs, where, v, lo, hi, printable_ascii=False):
+    if not isinstance(v, str) or not lo <= utf16_len(v) <= hi:
+        errs.append("text: " + where)
+        return
+    if printable_ascii and any(not 0x20 <= ord(ch) <= 0x7E for ch in v):
+        errs.append("text: " + where)
+
+
+def handoff(case):
+    """Validate a goten.allocation-request/1 and compute its goten.allocation-result/1."""
+    if "projection" in case and "request" not in case and "requestText" not in case:
+        pr = case["projection"]
+        return {"ok": True, "canonical": canonical(pr), "hash": projection_hash(pr)}
+    errs = []
+    if "requestText" in case:
+        try:
+            req = json.loads(case["requestText"], object_pairs_hook=_pairs)
+        except _Dup:
+            return {"ok": False, "errors": ["duplicate-key"]}
+        except ValueError:
+            return {"ok": False, "errors": ["invalid-json"]}
+    else:
+        req = case.get("request")
+    if _has_lone_surrogate(req):
+        return {"ok": False, "errors": ["lone-surrogate"]}
+    deal_ccy = case.get("dealCurrency", "GBP")
+    if not _keys(errs, "request", req, ("format", "handoff_id", "deal_id", "engine", "projection_hash",
+                                        "projection", "bookkeeping")):
+        return {"ok": False, "errors": errs}
+    if req.get("format") != "goten.allocation-request/1":
+        return {"ok": False, "errors": ["unknown-format"]}
+    _text(errs, "handoff_id", req.get("handoff_id"), 1, 80, True)
+    _text(errs, "deal_id", req.get("deal_id"), 1, 80, True)
+    eng = req.get("engine")
+    if eng != ENGINE:
+        errs.append("This request needs engine %s; this copy of Goten runs %s" % (eng, ENGINE))
+    ph = req.get("projection_hash")
+    if not isinstance(ph, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", ph):
+        errs.append("projection_hash format")
+    pr = req.get("projection")
+    if not _keys(errs, "projection", pr, ("currency", "instrument", "minimum", "deal_fees", "participants"),
+                 ("share_price_micros", "cap", "platform_fee")):
+        return {"ok": False, "errors": errs}
+    try:
+        if isinstance(ph, str) and projection_hash(pr) != ph:
+            errs.append("The file was changed after it was exported")
+    except Invalid:
+        errs.append("non-string value in projection")
+
+    ccy = pr.get("currency")
+    if ccy not in ("GBP", "EUR", "USD"):
+        errs.append("currency")
+    elif ccy != deal_ccy:
+        if case.get("feePayerChangeActive"):
+            errs.append("This request is in %s; this deal is in %s. Reverse the active fee payer change first, "
+                        "then change the deal currency to %s and import again." % (ccy, deal_ccy, ccy))
+        else:
+            errs.append("This request is in %s; this deal is in %s. Change the deal currency to %s in Deal "
+                        "settings, then import again." % (ccy, deal_ccy, ccy))
+    inst = pr.get("instrument")
+    price = None
+    if inst not in ("equity", "convertible", "fund_units"):
+        errs.append("instrument")
+    elif inst == "equity":
+        if "share_price_micros" not in pr:
+            errs.append("missing-field: projection.share_price_micros")
+        else:
+            price = _num(errs, "share_price_micros", pr["share_price_micros"], 1, 10 ** 12)
+    elif "share_price_micros" in pr:
+        errs.append("share price must be empty")
+    cap = _num(errs, "cap", pr["cap"], 1, MONEY_MAX) if "cap" in pr else None
+    minimum = _num(errs, "minimum", pr.get("minimum"), 0, MONEY_MAX)
+
+    pf = None
+    if "platform_fee" in pr:
+        q = pr["platform_fee"]
+        if _keys(errs, "platform_fee", q, ("rate_bps", "minimum", "payer"),
+                 ("maximum", "add_on_threshold", "add_on_rate_bps")):
+            pf = {"rate": _num(errs, "platform_fee.rate_bps", q.get("rate_bps"), 0, BP),
+                  "minimum": _num(errs, "platform_fee.minimum", q.get("minimum"), 0, MONEY_MAX),
+                  "maximum": _num(errs, "platform_fee.maximum", q["maximum"], 0, MONEY_MAX) if "maximum" in q else None,
+                  "addOnThreshold": None, "addOnRate": None, "payer": q.get("payer")}
+            if "add_on_threshold" in q:
+                pf["addOnThreshold"] = _num(errs, "platform_fee.add_on_threshold", q["add_on_threshold"], 0, MONEY_MAX)
+                if "add_on_rate_bps" not in q:
+                    errs.append("platform_fee.add_on_rate_bps required with a threshold")
+                else:
+                    pf["addOnRate"] = _num(errs, "platform_fee.add_on_rate_bps", q["add_on_rate_bps"], 0, BP)
+            elif "add_on_rate_bps" in q:
+                if _num(errs, "platform_fee.add_on_rate_bps", q["add_on_rate_bps"], 0, BP) not in (0, None):
+                    errs.append("platform_fee.add_on_rate_bps without threshold")
+            if q.get("payer") not in ("investors", "lead", "company"):
+                errs.append("platform_fee.payer")
+            if pf["minimum"] is not None and pf["maximum"] is not None and pf["minimum"] > pf["maximum"]:
+                errs.append("platform_fee minimum > maximum")
+
+    fees = []
+    dfs = pr.get("deal_fees")
+    if not isinstance(dfs, list):
+        errs.append("deal_fees")
+        dfs = []
+    if len(dfs) > 20:
+        errs.append("deal_fees > 20")
+    seen_f, seen_l = set(), set()
+    for j, f in enumerate(dfs):
+        w = "deal_fees[%d]" % j
+        if not _keys(errs, w, f, ("id", "label", "payer", "kind", "value")):
+            continue
+        _text(errs, w + ".id", f.get("id"), 1, 40)
+        _text(errs, w + ".label", f.get("label"), 1, 60)
+        if f.get("id") in seen_f:
+            errs.append("duplicate fee id")
+        seen_f.add(f.get("id"))
+        lab = f.get("label").strip(" \t\r\n").lower() if isinstance(f.get("label"), str) else None
+        if lab in seen_l:
+            errs.append("duplicate fee label")
+        seen_l.add(lab)
+        if f.get("payer") not in ("company", "lead"):
+            errs.append(w + ".payer")
+        if f.get("kind") == "percent":
+            v = _num(errs, w + ".value", f.get("value"), 0, BP)
+        elif f.get("kind") == "fixed":
+            v = _num(errs, w + ".value", f.get("value"), 1, MONEY_MAX)
+        else:
+            errs.append(w + ".kind")
+            v = None
+        fees.append({"id": f.get("id"), "kind": f.get("kind"), "value": v, "payer": f.get("payer")})
+
+    parts = pr.get("participants")
+    if not isinstance(parts, list):
+        errs.append("participants")
+        parts = []
+    if len(parts) > 500:
+        errs.append("more than 500 participants")
+    pids = []
+    investors = []
+    allocated = set()
+    for j, pp in enumerate(parts):
+        w = "participants[%d]" % j
+        if not isinstance(pp, dict):
+            errs.append("object: " + w)
+            continue
+        dec = pp.get("decision")
+        if dec == "allocate":
+            ok = _keys(errs, w, pp, ("id", "order", "status", "decision", "terms", "commitment", "cash_due",
+                                     "allocation_amount", "scheme"))
+        else:
+            ok = _keys(errs, w, pp, ("id", "order", "status", "decision"))
+        _text(errs, w + ".id", pp.get("id"), 1, 40)
+        if pp.get("id") in pids:
+            errs.append("duplicate participant id")
+        pids.append(pp.get("id"))
+        if _num(errs, w + ".order", pp.get("order"), 1) != j + 1:
+            errs.append("order must be exactly 1..n in sequence: " + w)
+        for key in ("status", "decision"):
+            if not isinstance(pp.get(key), str) or not WORD_RE.fullmatch(pp.get(key)):
+                errs.append("%s.%s" % (w, key))
+        if dec != "allocate" or not ok:
+            continue
+        allocated.add(pp["id"])
+        t = pp.get("terms")
+        own = None
+        if _keys(errs, w + ".terms", t, ("fee_mode", "fee", "carry_bps")):
+            mode = {"on_top": "onTop", "deducted": "deducted"}.get(t.get("fee_mode"))
+            if mode is None:
+                errs.append(w + ".terms.fee_mode")
+            fee = t.get("fee")
+            ofee = None
+            if fee is not None:
+                if isinstance(fee, dict) and fee.get("kind") == "rate":
+                    if _keys(errs, w + ".terms.fee", fee, ("kind", "rate_bps")):
+                        r_ = _num(errs, w + ".terms.fee.rate_bps", fee.get("rate_bps"), 0, BP)
+                        if r_ is not None and mode == "deducted" and r_ >= BP:
+                            errs.append(w + ": deducted rate must be < 100%")
+                        ofee = {"kind": "percent", "value": r_}
+                elif isinstance(fee, dict) and fee.get("kind") == "fixed":
+                    if _keys(errs, w + ".terms.fee", fee, ("kind", "amount")):
+                        ofee = {"kind": "fixed", "value": _num(errs, w + ".terms.fee.amount", fee.get("amount"), 1, MONEY_MAX)}
+                else:
+                    errs.append(w + ".terms.fee")
+            _num(errs, w + ".terms.carry_bps", t.get("carry_bps"), 0, BP)
+            own = {"mode": mode, "fee": ofee}
+        _num(errs, w + ".commitment", pp.get("commitment"), 0, MONEY_MAX)
+        _num(errs, w + ".cash_due", pp.get("cash_due"), 0, MONEY_MAX)
+        R = _num(errs, w + ".allocation_amount", pp.get("allocation_amount"), 0, MONEY_MAX)
+        if pp.get("scheme") not in ("none", "SEIS", "EIS"):
+            errs.append(w + ".scheme")
+        investors.append({"id": pp.get("id"), "received": R, "scheme": pp.get("scheme"), "ownTerms": own})
+
+    bk = req.get("bookkeeping")
+    named = set()
+    if _keys(errs, "bookkeeping", bk, ("participants",)):
+        bps = bk.get("participants")
+        if not isinstance(bps, list):
+            errs.append("bookkeeping.participants")
+            bps = []
+        seen_b = set()
+        for j, b in enumerate(bps):
+            w = "bookkeeping.participants[%d]" % j
+            if not _keys(errs, w, b, ("id", "name"), ("email", "money_held")):
+                continue
+            if b.get("id") not in pids:
+                errs.append(w + ": id not in projection")
+            if b.get("id") in seen_b:
+                errs.append(w + ": duplicate id")
+            seen_b.add(b.get("id"))
+            _text(errs, w + ".name", b.get("name"), 1, 256)
+            named.add(b.get("id"))
+            if "email" in b:
+                _text(errs, w + ".email", b["email"], 1, 320)
+                if isinstance(b["email"], str) and "@" not in b["email"]:
+                    errs.append(w + ".email")
+            if "money_held" in b:
+                _num(errs, w + ".money_held", b["money_held"], 0, MONEY_MAX)
+    for i in allocated:
+        if i not in named:
+            errs.append("allocated participant without a name: %s" % i)
+
+    if errs:
+        return {"ok": False, "errors": errs}
+
+    acase = {"kind": "allocation", "feeBasis": "deducted", "minimum": minimum, "cap": cap,
+             "instrument": inst, "priceMicros": price, "fees": fees, "investors": investors}
+    if pf is not None:
+        acase["platformFee"] = pf
+    try:
+        a = allocation(acase)
+    except Invalid as e:
+        return {"ok": False, "errors": ["input: %s" % e]}
+    head = {"format": "goten.allocation-result/1", "handoff_id": req["handoff_id"], "engine": ENGINE,
+            "projection_hash": ph}
+    if a["blockers"]:
+        res = dict(head, can_close=False,
+                   blockers=[{"code": b, "ids": a["blockerIds"][b]} for b in a["blockers"]])
+        return {"ok": True, "result": res}
+    out_p = []
+    for pp in parts:
+        if pp["decision"] != "allocate":
+            out_p.append({"id": pp["id"], "allocated": False, "exclusion": "not-in-allocation"})
+            continue
+        v = a["investors"][pp["id"]]
+        if not v["participating"]:
+            out_p.append({"id": pp["id"], "allocated": False, "exclusion": v["exclusion"], "refund": str(v["refund"])})
+            continue
+        row = {"id": pp["id"], "allocated": True, "exclusion": None, "target": str(v["target"]),
+               "own_fee": str(v["ownFee"] or 0), "platform_fee_share": str(v["platformFeeShare"]),
+               "invested": str(v["invested"]), "refund": str(v["refund"])}
+        if inst == "equity":
+            row["micro_shares"] = str(v["microShares"])
+        if int(pp["allocation_amount"]) != v["target"] + (v["ownFee"] or 0) + v["refund"]:
+            raise ArithmeticFail("allocation_amount identity")
+        out_p.append(row)
+    totals = {"received": str(a["received"]), "invested": str(a["totalInvested"]),
+              "investor_fees": str(a["investorFees"]), "refunds": str(a["refunds"]),
+              "company_fees": str(a["companyFees"]), "lead_invoice": str(a["leadInvoice"]), "wire": str(a["wire"])}
+    if pf is not None:
+        totals["platform_fee"] = str(a["platformFee"]["amount"])
+        totals["platform_fee_payer"] = pf["payer"]
+    res = dict(head, can_close=True, blockers=[], participants=out_p, totals=totals,
+               deal_fees=[{"id": f["id"], "amount": str(a["feeTotals"][f["id"]])} for f in fees])
+    return {"ok": True, "result": res}
 
 
 # ---------------------------------------------------------------- entry
@@ -895,7 +1627,16 @@ def run(case):
             return reconcile(case)
         if kind == "feePayerChange":
             return fee_payer_change(case)
-    except (Invalid, KeyError, TypeError, AttributeError):
+        if kind == "handoff":
+            return handoff(case)
+    except Invalid as e:
+        out = {"ok": False}
+        if e.code:
+            out["error"] = e.code
+        if e.investor:
+            out["investor"] = e.investor
+        return out
+    except (KeyError, TypeError, AttributeError):
         return {"ok": False}
     return {"ok": False}
 

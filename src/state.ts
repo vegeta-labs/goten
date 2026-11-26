@@ -2,7 +2,7 @@
 // so a bad value is reported where it was typed and never silently becomes 0 (PRD I-07).
 // Hand-offs between modules are snapshots with version numbers (PRD R-X-07).
 import { isIsoDate, MAX_MONEY, MAX_PRICE_MICROS, parseDate, parseMoney, parsePercent, plainMoney, sumExact, trimAscii, type Currency } from './lib/money'
-import type { FeeBasis, FeeKind, FeePayer } from './lib/allocation'
+import type { FeeBasis, FeeKind, FeePayer, Instrument, OwnTerms } from './lib/allocation'
 import {
   commitmentFingerprint,
   decisionsAfterImport,
@@ -18,6 +18,7 @@ import {
   normRef,
 } from './lib/reconcile'
 import { generateId } from './lib/csv'
+import { readSavedRequest } from './lib/handoff'
 import { MAX_INVESTORS } from './lib/validate'
 import {
   appendEvents,
@@ -45,7 +46,7 @@ import { plainPrice } from './lib/exports'
 import type { AllocationInvestor } from './lib/allocation'
 
 export const STORAGE_KEY = 'goten:v1'
-export const SCHEMA = 2
+export const SCHEMA = 3
 
 export interface DealText {
   name: string
@@ -58,13 +59,26 @@ export interface DealText {
   initials: string
 }
 
-export interface CommitmentRow {
+/** R-DEAL-05 own terms as typed ('' = not set); shared by the investor list and the allocation table (v0.9) */
+export interface TermsText {
+  ownFeeMode: string
+  ownFeeRate: string
+  ownFeeFixed: string
+  carry: string
+}
+export const NO_TERMS: TermsText = { ownFeeMode: '', ownFeeRate: '', ownFeeFixed: '', carry: '' }
+
+export interface CommitmentRow extends TermsText {
   id: string
   name: string
   email: string
   reference: string
   cashDue: string
   scheme: string
+  /** C-REC-4 v0.9: refunded plus in flight, '' = 0 */
+  refunded: string
+  /** C-REC-9: 'withdrawn' | 'closed' | '' */
+  refundOnly: string
 }
 
 export interface BankRow {
@@ -76,11 +90,21 @@ export interface BankRow {
   reference: string
 }
 
-export interface InvestorRow {
+export interface InvestorRow extends TermsText {
   id: string
   name: string
   received: string
   scheme: string
+}
+
+/** R-ALL-13, as typed */
+export interface PlatformFeeRow {
+  rate: string
+  minimum: string
+  maximum: string
+  threshold: string
+  addOnRate: string
+  payer: FeePayer
 }
 
 export interface FeeRow {
@@ -102,6 +126,14 @@ export interface AllocationState {
   handoffVersion: number | null
   /** the investor table was edited here after the hand-off (R-ALL-12.1) */
   editedSinceHandoff: boolean
+  /** R-DEAL-06 (v0.9) */
+  instrument: Instrument
+  /** R-ALL-13 (v0.9); null: none */
+  platformFee: PlatformFeeRow | null
+  /** R-ALL-14 (v0.9): the imported request as read, re-parsed on load; null when the inputs did not come from one */
+  handoffRequest: { text: string; hash: string } | null
+  /** any allocation input or the currency changed after the request was imported: no result export */
+  editedSinceRequest: boolean
 }
 
 /**
@@ -115,6 +147,15 @@ export interface HoldingRow {
   name: string
   /** amount invested, excluding fees (R-DIS-01) */
   capital: string
+  /** C-DIS-8 personal carry, '' = the deal's (v0.9) */
+  carry: string
+}
+
+/** C-DIS-9 (v0.9) */
+export interface PayeeRow {
+  id: string
+  name: string
+  share: string
 }
 
 export interface TierRow {
@@ -128,6 +169,8 @@ export interface ExitState {
   holdings: HoldingRow[]
   /** saved with the snapshot or the import; only used to display shares (C-DIS-7) */
   sharePriceMicros: number | null
+  /** v0.9: the instrument the holdings came from; non-equity exports leave share cells blank (C-ALL-5). Absent = equity */
+  instrument?: Instrument
   /** allocation version the holdings were handed off from; null when entered or imported here */
   handoffVersion: number | null
   proceeds: string
@@ -138,6 +181,8 @@ export interface ExitState {
   hurdle: string
   catchUp: string
   tiers: TierRow[]
+  /** C-DIS-9 (v0.9); empty: one payee, "Lead" */
+  payees: PayeeRow[]
 }
 
 export interface AppState {
@@ -188,9 +233,35 @@ const dealText = (d: DealSettings): DealText => ({
   initials: '',
 })
 
-export const commitmentRow = (c: Commitment): CommitmentRow => ({ ...c, cashDue: plainMoney(c.cashDue) })
+const pctText = (bps: number) => (bps / 100).toFixed(2)
+/** engine terms → typed text (v0.9) */
+export function termsText(t: OwnTerms | null | undefined, carryBps: number | null | undefined): TermsText {
+  return {
+    ownFeeMode: t ? (t.mode === 'onTop' ? 'on_top' : 'deducted') : '',
+    ownFeeRate: t?.fee?.kind === 'percent' ? pctText(t.fee.bps) : '',
+    ownFeeFixed: t?.fee?.kind === 'fixed' ? plainMoney(t.fee.amount) : '',
+    carry: carryBps === undefined || carryBps === null ? '' : pctText(carryBps),
+  }
+}
+export const commitmentRow = (c: Commitment): CommitmentRow => ({
+  id: c.id,
+  name: c.name,
+  email: c.email,
+  reference: c.reference,
+  cashDue: plainMoney(c.cashDue),
+  scheme: c.scheme,
+  ...termsText(c.ownTerms, c.carryBps),
+  refunded: c.refunded ? plainMoney(c.refunded) : '',
+  refundOnly: c.refundOnly ?? '',
+})
 export const bankRow = (l: BankLine): BankRow => ({ ...l, amount: plainMoney(l.amount) })
-export const investorRow = (v: AllocationInvestor): InvestorRow => ({ ...v, received: plainMoney(v.received) })
+export const investorRow = (v: AllocationInvestor): InvestorRow => ({
+  id: v.id,
+  name: v.name,
+  received: plainMoney(v.received),
+  scheme: v.scheme,
+  ...termsText(v.ownTerms, v.carryBps),
+})
 
 const emptyAllocation = (): AllocationState => ({
   price: '',
@@ -200,6 +271,10 @@ const emptyAllocation = (): AllocationState => ({
   excess: [],
   handoffVersion: null,
   editedSinceHandoff: false,
+  instrument: 'equity',
+  platformFee: null,
+  handoffRequest: null,
+  editedSinceRequest: false,
 })
 export const emptyExit = (): ExitState => ({
   holdings: [],
@@ -213,8 +288,14 @@ export const emptyExit = (): ExitState => ({
   hurdle: '',
   catchUp: '',
   tiers: [],
+  payees: [],
 })
-export const holdingRow = (h: Holding): HoldingRow => ({ ...h, capital: plainMoney(h.capital) })
+export const holdingRow = (h: Holding): HoldingRow => ({
+  id: h.id,
+  name: h.name,
+  capital: plainMoney(h.capital),
+  carry: h.carryBps === undefined || h.carryBps === null ? '' : pctText(h.carryBps),
+})
 const NO_TABLES: Tables = { commitments: 0, bank: 0, investors: 0, fees: 0, holdings: 0, tiers: 0 }
 
 export function initialState(now = new Date()): AppState {
@@ -303,7 +384,12 @@ export type Action =
   | { type: 'decide'; lineId: string; decision: Decision; via?: 'candidate' | 'any'; prevStatus?: LineStatus; tour?: boolean }
   | { type: 'undoDecision'; lineId: string; prevStatus?: LineStatus; tour?: boolean }
   | { type: 'handoff'; handoff: Handoff; tour?: boolean }
-  | { type: 'setAllocation'; patch: Partial<Pick<AllocationState, 'price' | 'cap'>> }
+  | { type: 'setAllocation'; patch: Partial<Pick<AllocationState, 'price' | 'cap' | 'instrument' | 'platformFee'>> }
+  | { type: 'importHandoffRequest'; text: string; hash: string; handoffId: string; participants: number; rows: InvestorRow[]; allocation: Pick<AllocationState, 'price' | 'cap' | 'instrument' | 'platformFee' | 'fees'>; minimum: string }
+  | { type: 'handoffResultExported'; handoffId: string; hash: string }
+  | { type: 'addPayee' }
+  | { type: 'editPayee'; index: number; rowId?: string; field: 'name' | 'share'; value: string }
+  | { type: 'deletePayee'; index: number }
   | { type: 'addFee' }
   | { type: 'editFee'; index: number; rowId?: string; patch: Partial<Omit<FeeRow, 'id'>> }
   | { type: 'deleteFee'; index: number }
@@ -313,9 +399,9 @@ export type Action =
   | { type: 'deleteInvestor'; index: number }
   | { type: 'keepRefund'; id: string }
   | { type: 'removeRefund'; id: string }
-  | { type: 'handoffToExit'; holdings: Holding[]; sharePriceMicros: number; tour?: boolean }
+  | { type: 'handoffToExit'; holdings: Holding[]; sharePriceMicros: number | null; instrument?: Instrument; tour?: boolean }
   | { type: 'replaceHoldings'; rows: HoldingRow[]; sharePriceMicros: number | null }
-  | { type: 'editHolding'; index: number; rowId?: string; field: 'name' | 'capital'; value: string }
+  | { type: 'editHolding'; index: number; rowId?: string; field: 'name' | 'capital' | 'carry'; value: string }
   | { type: 'addHolding' }
   | { type: 'deleteHolding'; index: number }
   | { type: 'setExit'; patch: Partial<Pick<ExitState, 'proceeds' | 'exitCosts' | 'years' | 'carry' | 'hurdle' | 'catchUp'>> }
@@ -416,7 +502,7 @@ function voidChangedDecisions(s: AppState, idEdited = false): { state: AppState;
 export interface MarkVoided {
   kind: 'withdrawal' | 'adjustment'
   investorId: string
-  reason: 'investor deleted' | 'ID changed' | 'ID duplicated' | 'reference changed' | 'cash due changed'
+  reason: 'investor deleted' | 'ID changed' | 'ID duplicated' | 'reference changed' | 'cash due changed' | 'refund only'
   /** withdrawal date, for the log */
   on?: string
 }
@@ -455,7 +541,13 @@ function voidChangedMarks(prev: AppState, s: AppState, idEdited: boolean): { sta
       const cash = row ? parseMoney(row.cashDue, s.deal.currency) : null
       const reason =
         gone(l.investorId) ??
-        (normRef(row!.reference) !== l.reference ? 'reference changed' : !cash?.ok || cash.value !== l.baseCashDue ? 'cash due changed' : null)
+        (normRef(row!.reference) !== l.reference
+          ? 'reference changed'
+          : !cash?.ok || cash.value !== l.baseCashDue
+            ? 'cash due changed'
+            : trimAscii(row!.refundOnly) !== ''
+              ? 'refund only' // C-REC-9 v0.9: permanent, so clearing the flag leaves the person not covered
+              : null)
       if (!reason) return l
       touched = true
       voided.push({ kind: 'adjustment', investorId: l.investorId, reason })
@@ -498,12 +590,34 @@ function voidChangedFeeChange(s: AppState): { state: AppState; voided: { change:
   return { state: bump(s, { feePayerChanges: s.feePayerChanges.map((x) => (x === c ? voided : x)) }), voided: { change: voided, reason } }
 }
 
+/** C-ALL-10 v0.9: own fee terms (`own_fee_mode` set) on someone the active change covers void the whole change. */
+function voidChangeForOwnTerms(s: AppState): { state: AppState; voided: { change: FeePayerChange; reason: string } | null } {
+  const c = activeChange(s.feePayerChanges)
+  if (!c) return { state: s, voided: null }
+  // the C-ALL-10 scope is everyone the change was applied to, including lines voided earlier in the same action (Codex M7 #3)
+  const covered = new Set(c.lines.map((l) => l.investorId))
+  if (!s.commitments.some((r) => covered.has(r.id) && trimAscii(r.ownFeeMode) !== '')) return { state: s, voided: null }
+  const voided = { ...c, status: 'voided' as const, voidReason: 'own fee terms added' }
+  return { state: bump(s, { feePayerChanges: s.feePayerChanges.map((x) => (x === c ? voided : x)) }), voided: { change: voided, reason: 'own fee terms added' } }
+}
+
+const OWN_FEE_FIELDS = new Set<keyof CommitmentRow>(['ownFeeMode', 'ownFeeRate', 'ownFeeFixed'])
+/** C-ALL-10 v0.9: while a change is active, the own fee terms of the people it covers cannot change (reverse first). */
+export function ownTermsLocked(s: Pick<AppState, 'feePayerChanges'>, investorId: string | undefined): boolean {
+  const c = activeChange(s.feePayerChanges)
+  return !!c && investorId !== undefined && c.lines.some((l) => !l.voided && l.investorId === investorId)
+}
+export const OWN_TERMS_LOCKED_TEXT = 'Reverse the fee payer change first'
+export const OWN_TERMS_BLOCK_TEXT =
+  "Some investors have their own fee terms. Changing who pays a deal fee is only available when everyone is on the deal's default terms."
+
 /** R-DEAL-01 (v0.8.1, decision 12): a recorded adjustment ties the amounts to the currency it was worked out in. */
 export const currencyLocked = (s: Pick<AppState, 'feePayerChanges'>) => activeChange(s.feePayerChanges) !== undefined
 export const CURRENCY_LOCKED_TEXT = 'Reverse the fee payer change before changing the currency'
 
 /** Actions that can change the fee a fee payer change was applied to, or the fee basis (C-ALL-11). */
-const FEE_DATA = new Set<Action['type']>(['editFee', 'deleteFee', 'setDeal'])
+// v0.9: a hand-off request replaces the whole fee table (R-ALL-14), so it can delete the fee a change was applied to
+const FEE_DATA = new Set<Action['type']>(['editFee', 'deleteFee', 'setDeal', 'importHandoffRequest'])
 
 /**
  * R-ALL-12.1 / 12.5: why the fee payer change panel is not available, or null. The reducer asks again before applying.
@@ -513,6 +627,10 @@ export function feePayerChangeBlock(s: AppState): string | null {
   if (s.allocation.handoffVersion === null) return 'Hand off from reconciliation first: the investors here were not carried in from it.'
   if (allocationStale(s)) return 'The allocation is out of date. Hand off from reconciliation again first.'
   if (s.allocation.editedSinceHandoff) return 'The investor table was edited after the hand-off. Hand off from reconciliation again first.'
+  // R-ALL-12.1 v0.9: anyone in scope (not withdrawn, no refund-only flag, in the snapshot) with own fee terms
+  const inSnapshot = new Set(s.allocation.investors.map((v) => v.id))
+  if (s.commitments.some((r) => inSnapshot.has(r.id) && !Object.hasOwn(s.withdrawals, r.id) && trimAscii(r.refundOnly) === '' && trimAscii(r.ownFeeMode) !== ''))
+    return OWN_TERMS_BLOCK_TEXT
   return null
 }
 
@@ -547,7 +665,9 @@ function targetMoved(s: AppState, a: Action): boolean {
               ? s.exit.holdings
               : a.type === 'editTier'
                 ? s.exit.tiers
-                : []
+                : a.type === 'editPayee'
+                  ? s.exit.payees
+                  : []
   return rows[a.index]?.id !== a.rowId
 }
 
@@ -589,8 +709,10 @@ export function makeReducer(clock: Clock) {
       : { state: applied, voided: [] }
     // withdrawal marks and adjustment lines follow the investor list; the whole change follows its fee (C-REC-7, C-ALL-11)
     const marked = UPSTREAM_DATA.has(a.type) ? voidChangedMarks(s, decided, idEdited) : { state: decided, voided: [] }
-    const fee = FEE_DATA.has(a.type) ? voidChangedFeeChange(marked.state) : { state: marked.state, voided: null }
-    const next = fee.state
+    const feeVoid = FEE_DATA.has(a.type) ? voidChangedFeeChange(marked.state) : { state: marked.state, voided: null }
+    const terms = UPSTREAM_DATA.has(a.type) ? voidChangeForOwnTerms(feeVoid.state) : { state: feeVoid.state, voided: null }
+    const fee = { state: terms.state, voided: feeVoid.voided ?? terms.voided }
+    const next = afterRequestEdit(s, fee.state, a)
     // a failure to log never stops the action (C-X-1, OWASP): the change stands, only this entry is lost
     try {
       const events = [...eventsFor(s, next, a, voided), ...markEvents(s, marked.voided), ...feeVoidEvents(fee.voided)]
@@ -606,6 +728,17 @@ export function makeReducer(clock: Clock) {
 
 export const reducer = makeReducer(systemClock)
 
+/** R-ALL-14: an allocation input or the currency changed after a request was imported → no result export; a new source drops it. */
+// applying or reversing a fee payer change rewrites a fee's payer, so it is an input edit too (Codex M7 #1)
+const ALLOC_INPUT = new Set<Action['type']>(['setAllocation', 'addFee', 'editFee', 'deleteFee', 'editInvestor', 'addInvestor', 'deleteInvestor', 'applyFeePayerChange', 'reverseFeePayerChange'])
+function afterRequestEdit(prev: AppState, s: AppState, a: Action): AppState {
+  if (!s.allocation.handoffRequest || a.type === 'importHandoffRequest') return s
+  if (a.type === 'handoff' || a.type === 'replaceInvestors') return { ...s, allocation: { ...s.allocation, handoffRequest: null, editedSinceRequest: false } }
+  const dealEdit = a.type === 'setDeal' && ['minimum', 'feeBasis', 'currency'].some((k) => k in a.patch && (a.patch as Record<string, unknown>)[k] !== (prev.deal as unknown as Record<string, unknown>)[k])
+  if (s === prev || !(ALLOC_INPUT.has(a.type) || dealEdit)) return s
+  return { ...s, allocation: { ...s.allocation, editedSinceRequest: true } }
+}
+
 /** What applying an investor list would void (R-REC-01.3). */
 export interface ImportLoss {
   decisions: number
@@ -613,6 +746,8 @@ export interface ImportLoss {
   adjustments: number
   /** a lost investor came back on a row whose ID was blank, so they got a new ID */
   blankIds: boolean
+  /** v0.9: whole fee payer changes voided by own fee terms in the import (C-ALL-10); absent when none */
+  changes?: number
 }
 
 // the entries the simulated run writes are thrown away, so its clock does not matter
@@ -647,10 +782,12 @@ export function investorImportLoss(s: AppState, rows: CommitmentRow[], generated
     const row = s.commitments.find((r) => r.id === id)
     return !kept.has(id) && row !== undefined && blankRefs.has(normRef(row.reference))
   }
-  return { decisions, withdrawals: goneMarks.length, adjustments, blankIds: lostIds.some(cameBackBlank) }
+  // C-ALL-10 v0.9: own fee terms brought in by the import void the whole active change (key only when it happens)
+  const changes = after.feePayerChanges.filter((c, i) => c.status === 'voided' && s.feePayerChanges[i]?.status === 'active').length
+  return { decisions, withdrawals: goneMarks.length, adjustments, blankIds: lostIds.some(cameBackBlank), ...(changes ? { changes } : {}) }
 }
 
-export const importLossCount = (l: ImportLoss) => l.decisions + l.withdrawals + l.adjustments
+export const importLossCount = (l: ImportLoss) => l.decisions + l.withdrawals + l.adjustments + (l.changes ?? 0)
 
 /** R-REC-01.3: the warning, naming only what would be lost. */
 export function importLossText(l: ImportLoss): string {
@@ -658,6 +795,7 @@ export function importLossText(l: ImportLoss): string {
     l.decisions > 0 && plural(l.decisions, 'decision'),
     l.withdrawals > 0 && plural(l.withdrawals, 'withdrawal mark'),
     l.adjustments > 0 && plural(l.adjustments, 'fee payer adjustment'),
+    (l.changes ?? 0) > 0 && plural(l.changes!, 'fee payer change'),
   ].filter((p) => p !== false)
   const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0]
   return `This import will void ${list}${l.blankIds ? ' (rows with a blank investor_id get new IDs)' : ''}. This cannot be undone.`
@@ -828,6 +966,16 @@ function eventsFor(prev: AppState, next: AppState, a: Action, voided: Voided[]):
       ]
     case 'logExported':
       return [{ event: 'log_exported' }] // written by markExported, which first records how far the export went
+    // C-X-1 v0.9: the hand-off ID and the first 12 hex digits after `sha256:`
+    case 'importHandoffRequest':
+      return [{ event: 'handoff_request_imported', detail: `${a.handoffId} · ${a.hash.slice(7, 19)} · ${plural(a.participants, 'participant')}` }]
+    case 'handoffResultExported':
+      return [{ event: 'handoff_result_exported', detail: `${a.handoffId} · ${a.hash.slice(7, 19)}` }]
+    case 'setAllocation': {
+      const from = prev.allocation.platformFee?.payer
+      const to = next.allocation.platformFee?.payer
+      return from && to && from !== to ? [{ event: 'platform_fee_payer_changed', detail: `${from} → ${to}` }] : []
+    }
     case 'markWithdrawn': {
       const w = Object.hasOwn(next.withdrawals, a.investorId) && !Object.hasOwn(prev.withdrawals, a.investorId) ? next.withdrawals[a.investorId] : null
       return w ? [{ event: 'withdrawn', ...investorFacts(prev, a.investorId), detail: `withdrawn on ${w.on} · written consent received` }] : []
@@ -890,11 +1038,13 @@ function apply(s: AppState, a: Action, now: () => string): AppState {
     case 'replaceCommitments':
       return bump(s, { commitments: a.rows, tables: renew(s, 'commitments') })
     case 'editCommitment': {
+      // C-ALL-10 v0.9: own fee terms of someone the active change covers stay as they are until it is reversed
+      if (OWN_FEE_FIELDS.has(a.field) && ownTermsLocked(s, s.commitments[a.index]?.id)) return s
       const value = a.field === 'id' ? idOrNew(a.value, 'inv') : a.value
       return bump(s, { commitments: replaceAt(s.commitments, a.index, { ...s.commitments[a.index], [a.field]: value }) })
     }
     case 'addCommitment':
-      return bump(s, { commitments: [...s.commitments, { id: generateId('inv'), name: '', email: '', reference: '', cashDue: '', scheme: 'none' }] })
+      return bump(s, { commitments: [...s.commitments, { id: generateId('inv'), name: '', email: '', reference: '', cashDue: '', scheme: 'none', ...NO_TERMS, refunded: '', refundOnly: '' }] })
     case 'deleteCommitment':
       return bump(s, { commitments: removeAt(s.commitments, a.index) })
     case 'importBank':
@@ -934,6 +1084,22 @@ function apply(s: AppState, a: Action, now: () => string): AppState {
       )
     case 'setAllocation':
       return alloc(s, a.patch)
+    case 'importHandoffRequest':
+      // R-ALL-14: the request replaces every allocation input; the minimum is a deal setting (R-DEAL-04)
+      return alloc(
+        { ...s, deal: { ...s.deal, minimum: a.minimum }, tables: renewAll(s.tables) },
+        {
+          ...a.allocation,
+          investors: a.rows,
+          excess: [],
+          handoffVersion: null,
+          editedSinceHandoff: false,
+          handoffRequest: { text: a.text, hash: a.hash },
+          editedSinceRequest: false,
+        },
+      )
+    case 'handoffResultExported':
+      return s
     case 'addFee':
       return alloc(s, { fees: [...s.allocation.fees, { id: generateId('fee'), label: '', payer: 'investors', kind: 'percent', value: '' }] })
     case 'editFee': {
@@ -948,6 +1114,8 @@ function apply(s: AppState, a: Action, now: () => string): AppState {
     case 'replaceInvestors':
       return alloc({ ...s, tables: renew(s, 'investors') }, { investors: a.rows, excess: [], handoffVersion: null, editedSinceHandoff: false })
     case 'editInvestor': {
+      // C-ALL-10 v0.9: the same lock as on the investor list (Codex M7 r2 #1)
+      if ((a.field === 'ownFeeMode' || a.field === 'ownFeeRate' || a.field === 'ownFeeFixed') && ownTermsLocked(s, s.allocation.investors[a.index]?.id)) return s
       const value = a.field === 'id' ? idOrNew(a.value, 'inv') : a.value
       return alloc(s, {
         investors: replaceAt(s.allocation.investors, a.index, { ...s.allocation.investors[a.index], [a.field]: value }),
@@ -957,7 +1125,7 @@ function apply(s: AppState, a: Action, now: () => string): AppState {
     }
     case 'addInvestor':
       return alloc(s, {
-        investors: [...s.allocation.investors, { id: generateId('inv'), name: '', received: '', scheme: 'none' }],
+        investors: [...s.allocation.investors, { id: generateId('inv'), name: '', received: '', scheme: 'none', ...NO_TERMS }],
         editedSinceHandoff: true,
       })
     case 'deleteInvestor':
@@ -976,16 +1144,22 @@ function apply(s: AppState, a: Action, now: () => string): AppState {
       // R-ALL-11: the holdings are replaced whole, with the share price saved alongside (R-X-07, C-DIS-7)
       return exit(
         { ...s, tables: renew(s, 'holdings') },
-        { holdings: a.holdings.map(holdingRow), sharePriceMicros: a.sharePriceMicros, handoffVersion: s.allocVersion },
+        { holdings: a.holdings.map(holdingRow), sharePriceMicros: a.sharePriceMicros, handoffVersion: s.allocVersion, instrument: a.instrument ?? 'equity' },
       )
     case 'replaceHoldings':
-      return exit({ ...s, tables: renew(s, 'holdings') }, { holdings: a.rows, sharePriceMicros: a.sharePriceMicros, handoffVersion: null })
+      return exit({ ...s, tables: renew(s, 'holdings') }, { holdings: a.rows, sharePriceMicros: a.sharePriceMicros, handoffVersion: null, instrument: 'equity' })
     case 'editHolding': {
       const value = a.value
       return exit(s, { holdings: replaceAt(s.exit.holdings, a.index, { ...s.exit.holdings[a.index], [a.field]: value }) })
     }
+    case 'addPayee':
+      return exit(s, { payees: [...s.exit.payees, { id: generateId('payee'), name: '', share: '' }] })
+    case 'editPayee':
+      return exit(s, { payees: replaceAt(s.exit.payees, a.index, { ...s.exit.payees[a.index], [a.field]: a.value }) })
+    case 'deletePayee':
+      return exit(s, { payees: removeAt(s.exit.payees, a.index) })
     case 'addHolding':
-      return exit(s, { holdings: [...s.exit.holdings, { id: generateId('inv'), name: '', capital: '' }] })
+      return exit(s, { holdings: [...s.exit.holdings, { id: generateId('inv'), name: '', capital: '', carry: '' }] })
     case 'deleteHolding':
       return exit(s, { holdings: removeAt(s.exit.holdings, a.index) })
     case 'setExit':
@@ -1014,6 +1188,7 @@ function apply(s: AppState, a: Action, now: () => string): AppState {
       const row = s.commitments.find((r) => r.id === a.investorId)
       const on = parseDate(a.on)
       if (a.consent !== true || !on.ok || !row || Object.hasOwn(s.withdrawals, a.investorId)) return s
+      if (trimAscii(row.refundOnly) !== '') return s // C-REC-9: an imported flag already decides it
       // the consent was given for one person: a list replaced or edited since the tick puts someone else under this ID
       if ((a.name !== undefined && a.name !== row.name) || (a.reference !== undefined && normRef(a.reference) !== normRef(row.reference))) return s
       const withdrawals: Record<string, Withdrawal> = Object.assign(Object.create(null), s.withdrawals)
@@ -1077,6 +1252,10 @@ export function amountsEntered(s: AppState): number {
       ...s.exit.holdings.map((h) => h.capital),
       s.exit.proceeds,
       s.exit.exitCosts,
+      // v0.9 money fields (Codex M7 r2 #4)
+      ...s.commitments.flatMap((c) => [c.ownFeeFixed, c.refunded]),
+      ...a.investors.map((v) => v.ownFeeFixed),
+      ...(a.platformFee ? [a.platformFee.minimum, a.platformFee.maximum, a.platformFee.threshold] : []),
     ].filter(filled).length +
     a.excess.length + // over-payments listed for refund at hand-off (UI polish self-test #5)
     (s.exit.sharePriceMicros === null ? 0 : 1)
@@ -1101,9 +1280,13 @@ export function parseSaved(raw: string | null): AppState | null {
   } catch {
     return null
   }
-  // schema 1 is v1.1.x; schema 2 adds withdrawals, fee payer changes, the activity log and initials (Tech Design §9.1)
-  if (!isObj(v) || (v.schema !== 1 && v.schema !== SCHEMA) || typeof v.disclaimerAccepted !== 'boolean' || !Number.isSafeInteger(v.recVersion)) return null
+  // schema 1 is v1.1.x; schema 2 adds withdrawals, fee payer changes, the activity log and initials (Tech Design §9.1);
+  // schema 3 (v0.9, §10.2) adds own terms, refunds, refund-only flags, instruments, the platform fee, the hand-off request,
+  // personal carry and payees. Older saves get those fields empty; a schema 3 save must have them all (money fields: no guessing)
+  if (!isObj(v) || (v.schema !== 1 && v.schema !== 2 && v.schema !== SCHEMA) || typeof v.disclaimerAccepted !== 'boolean' || !Number.isSafeInteger(v.recVersion)) return null
   const old = v.schema === 1
+  const pre3 = v.schema !== SCHEMA
+  const TERM_KEYS = ['ownFeeMode', 'ownFeeRate', 'ownFeeFixed', 'carry']
   const d = v.deal
   if (
     !strFields(d, ['name', 'asOf', 'minimum', 'agedThresholdDays']) ||
@@ -1112,7 +1295,7 @@ export function parseSaved(raw: string | null): AppState | null {
     !oneOf((d as Record<string, unknown>).feeBasis, ['deducted', 'onTop'])
   )
     return null
-  if (!arrOf(v.commitments, (x) => strFields(x, ['id', 'name', 'email', 'reference', 'cashDue', 'scheme']))) return null
+  if (!arrOf(v.commitments, (x) => strFields(x, ['id', 'name', 'email', 'reference', 'cashDue', 'scheme', ...(pre3 ? [] : [...TERM_KEYS, 'refunded', 'refundOnly'])]))) return null
   if (
     !arrOf(
       v.bank,
@@ -1141,11 +1324,20 @@ export function parseSaved(raw: string | null): AppState | null {
     )
   )
     return null
-  if (!arrOf(a.investors, (x) => strFields(x, ['id', 'name', 'received', 'scheme']))) return null
+  if (!arrOf(a.investors, (x) => strFields(x, ['id', 'name', 'received', 'scheme', ...(pre3 ? [] : TERM_KEYS)]))) return null
+  if (!pre3) {
+    if (!oneOf(a.instrument, ['equity', 'convertible', 'fund_units']) || typeof a.editedSinceRequest !== 'boolean') return null
+    if (!(a.platformFee === null || (strFields(a.platformFee, ['rate', 'minimum', 'maximum', 'threshold', 'addOnRate']) && oneOf((a.platformFee as Record<string, unknown>).payer, PAYERS))))
+      return null
+    if (!(a.handoffRequest === null || strFields(a.handoffRequest, ['text', 'hash']))) return null
+    // a saved request is checked again in full, never trusted (Tech Design §10.2, Codex M7 #5)
+    const req = a.handoffRequest as { text: string; hash: string } | null
+    if (req && !readSavedRequest(req.text, req.hash).ok) return null
+  }
   // refunds feed the closing confirmation directly, so they are checked as money, not just as shapes (Codex M2 #5)
   const refundOk = (x: unknown) =>
     strFields(x, ['id', 'name']) &&
-    ((x as Record<string, unknown>).reason === undefined || oneOf((x as Record<string, unknown>).reason, ['Withdrawn', 'Over-paid'])) &&
+    ((x as Record<string, unknown>).reason === undefined || oneOf((x as Record<string, unknown>).reason, ['Withdrawn', 'Over-paid', 'Refund only'])) &&
     Number.isSafeInteger((x as Record<string, unknown>).amount) &&
     ((x as Record<string, unknown>).amount as number) > 0 &&
     typeof (x as Record<string, unknown>).needsCheck === 'boolean'
@@ -1167,9 +1359,13 @@ export function parseSaved(raw: string | null): AppState | null {
     const price = e.sharePriceMicros
     if (!(price === null || (Number.isSafeInteger(price) && (price as number) > 0 && (price as number) <= MAX_PRICE_MICROS))) return null
     if (!(e.handoffVersion === null || Number.isSafeInteger(e.handoffVersion))) return null
-    if (!arrOf(e.holdings, (h) => strFields(h, ['id', 'name', 'capital']))) return null
+    if (!arrOf(e.holdings, (h) => strFields(h, ['id', 'name', 'capital', ...(pre3 ? [] : ['carry'])]))) return null
     if (!arrOf(e.tiers, (r) => strFields(r, ['id', 'upTo', 'rate']))) return null
-    exitState = x as unknown as ExitState
+    if (!pre3 && !arrOf(e.payees, (r) => strFields(r, ['id', 'name', 'share']))) return null
+    if (!(e.instrument === undefined || oneOf(e.instrument, ['equity', 'convertible', 'fund_units']))) return null
+    exitState = pre3
+      ? { ...(x as unknown as ExitState), holdings: (e.holdings as HoldingRow[]).map((h) => ({ ...h, carry: '' })), payees: [] }
+      : (x as unknown as ExitState)
   }
   if (v.allocVersion !== undefined && !Number.isSafeInteger(v.allocVersion)) return null
   const allocVersion = (v.allocVersion as number | undefined) ?? 1
@@ -1180,6 +1376,7 @@ export function parseSaved(raw: string | null): AppState | null {
   if (withdrawals === null || feePayerChanges === null) return null
   const loaded: AppState = {
     ...(v as unknown as AppState),
+    commitments: pre3 ? (v.commitments as CommitmentRow[]).map((c) => ({ ...c, ...NO_TERMS, refunded: '', refundOnly: '' })) : (v.commitments as CommitmentRow[]),
     schema: SCHEMA,
     deal: { ...(d as unknown as DealText), initials: old ? '' : (((d as Record<string, unknown>).initials as string | undefined) ?? '') },
     // not known whether the table was edited after the hand-off: assume it was, so a fee payer change waits for a new hand-off
@@ -1188,6 +1385,15 @@ export function parseSaved(raw: string | null): AppState | null {
       // refunds saved before withdrawals existed are all over-payments
       excess: (a.excess as Refund[]).map((x) => ({ ...x, reason: x.reason ?? 'Over-paid' })),
       editedSinceHandoff: old ? true : (a.editedSinceHandoff as boolean),
+      ...(pre3
+        ? {
+            investors: (a.investors as InvestorRow[]).map((x) => ({ ...x, ...NO_TERMS })),
+            instrument: 'equity' as const,
+            platformFee: null,
+            handoffRequest: null,
+            editedSinceRequest: false,
+          }
+        : {}),
     },
     decisions,
     tables,
@@ -1202,7 +1408,9 @@ export function parseSaved(raw: string | null): AppState | null {
   // before anything is calculated, never trusted (Codex M6 r6 #2 #3). Nothing is logged here: there is no action and no clock
   // a void found here changes reconciliation, so an allocation handed off before it is out of date (R-X-07; Codex M6 r7 #1)
   const marks = voidChangedMarks(loaded, loaded, false)
-  return voidChangedFeeChange(marks.voided.length ? bump(marks.state, {}) : marks.state).state
+  // own fee terms on a covered person void the whole change here too, as after an edit or an import (Codex M7 r3 #2);
+  // voidChangeForOwnTerms bumps the reconciliation version itself, so the allocation goes out of date with it
+  return voidChangeForOwnTerms(voidChangedFeeChange(marks.voided.length ? bump(marks.state, {}) : marks.state).state).state
 }
 
 const isMoney = (x: unknown) => Number.isSafeInteger(x) && (x as number) >= 1 && (x as number) <= MAX_MONEY
@@ -1226,6 +1434,16 @@ function parseWithdrawals(x: unknown): Record<string, Withdrawal> | null {
   return out
 }
 
+/** a PlatformFee saved with a fee payer change (C-ALL-11 v0.9) */
+const platformFeeOk = (p: unknown) =>
+  isObj(p) &&
+  isRate(p.rateBps) &&
+  isRate(p.addOnBps) &&
+  (p.minimum === 0 || isMoney(p.minimum)) &&
+  (p.maximum === null || p.maximum === 0 || isMoney(p.maximum)) &&
+  (p.addOnThreshold === null || p.addOnThreshold === 0 || isMoney(p.addOnThreshold)) &&
+  oneOf(p.payer, PAYERS)
+
 function parseFeePayerChanges(x: unknown): FeePayerChange[] | null {
   if (!Array.isArray(x)) return null
   const lineOk = (l: unknown) =>
@@ -1244,7 +1462,10 @@ function parseFeePayerChanges(x: unknown): FeePayerChange[] | null {
     if (!isObj(f) || !isRate(f.rateBps) || !oneOf(f.basis, BASES)) return false
     const st = c.settingsAtApply
     if (!isObj(st) || !(st.minimum === 0 || isMoney(st.minimum)) || !(st.cap === null || isMoney(st.cap))) return false
-    if (!Number.isSafeInteger(st.priceMicros) || (st.priceMicros as number) < 1 || (st.priceMicros as number) > MAX_PRICE_MICROS) return false
+    const equity = st.instrument === undefined || st.instrument === 'equity'
+    if (!(st.instrument === undefined || oneOf(st.instrument, ['equity', 'convertible', 'fund_units']))) return false
+    if (equity ? !Number.isSafeInteger(st.priceMicros) || (st.priceMicros as number) < 1 || (st.priceMicros as number) > MAX_PRICE_MICROS : st.priceMicros !== null) return false
+    if (!(st.platformFee === undefined || st.platformFee === null || platformFeeOk(st.platformFee))) return false
     if (!oneOf(st.basis, BASES) || !arrOf(st.fees, feeOk)) return false
     if (!isObj(c.targets) || !Object.values(c.targets).every(isMoney)) return false
     if (!arrOf(c.lines, lineOk) || (c.lines as unknown[]).length > MAX_INVESTORS) return false

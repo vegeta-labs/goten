@@ -12,7 +12,7 @@
     "test": "vitest run",
     "typecheck": "tsc -b",
     "oracle:selfcheck": "python3 scripts/oracle/selfcheck.py",
-    "coverage:check": "vitest run --reporter=json --outputFile=test-report.json && node scripts/check-coverage.mjs test-report.json",
+    "coverage:check": "vitest run --reporter=dot --reporter=json --outputFile.json=test-report.json && node scripts/check-coverage.mjs test-report.json",
     "bench": "BENCH=1 vitest run src/lib/perf.test.ts",
     "mutation": "node scripts/mutation-check.mjs",
     "mutation:patterns": "node scripts/mutation-check.mjs --check-only && node scripts/mutation-select-self-test.mjs",

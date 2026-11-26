@@ -1,0 +1,358 @@
+{
+  "format_doc": "allocation-handoff-v1.md",
+  "vectors": [
+    {
+      "name": "canonical_section_2_1_example",
+      "kind": "canonical",
+      "description": "The projection printed in format §2.1, taken literally (both ids are the printed \"p_…\", U+2026 encoded as UTF-8 e2 80 a6). Hashing only: as a request it would be refused for duplicate ids.",
+      "projection": {
+        "currency": "GBP",
+        "instrument": "equity",
+        "share_price_micros": "1250000",
+        "cap": "30000000",
+        "minimum": "100000",
+        "platform_fee": {
+          "rate_bps": "250",
+          "minimum": "0",
+          "payer": "investors"
+        },
+        "deal_fees": [],
+        "participants": [
+          {
+            "id": "p_…",
+            "order": "1",
+            "status": "active",
+            "decision": "allocate",
+            "terms": {
+              "fee_mode": "on_top",
+              "fee": {
+                "kind": "rate",
+                "rate_bps": "400"
+              },
+              "carry_bps": "2000"
+            },
+            "commitment": "1000000",
+            "cash_due": "1040000",
+            "allocation_amount": "1040000",
+            "scheme": "none"
+          },
+          {
+            "id": "p_…",
+            "order": "2",
+            "status": "withdrawn",
+            "decision": "refund"
+          }
+        ]
+      },
+      "canonical_utf8_hex": "7b22636170223a223330303030303030222c2263757272656e6379223a22474250222c226465616c5f66656573223a5b5d2c22696e737472756d656e74223a22657175697479222c226d696e696d756d223a22313030303030222c227061727469636970616e7473223a5b7b22616c6c6f636174696f6e5f616d6f756e74223a2231303430303030222c22636173685f647565223a2231303430303030222c22636f6d6d69746d656e74223a2231303030303030222c226465636973696f6e223a22616c6c6f63617465222c226964223a22705fe280a6222c226f72646572223a2231222c22736368656d65223a226e6f6e65222c22737461747573223a22616374697665222c227465726d73223a7b2263617272795f627073223a2232303030222c22666565223a7b226b696e64223a2272617465222c22726174655f627073223a22343030227d2c226665655f6d6f6465223a226f6e5f746f70227d7d2c7b226465636973696f6e223a22726566756e64222c226964223a22705fe280a6222c226f72646572223a2232222c22737461747573223a2277697468647261776e227d5d2c22706c6174666f726d5f666565223a7b226d696e696d756d223a2230222c227061796572223a22696e766573746f7273222c22726174655f627073223a22323530227d2c2273686172655f70726963655f6d6963726f73223a2231323530303030227d",
+      "projection_hash": "sha256:964633d30d65c300ef096cf311136ea88bb2f763418776c3554c4d33174dba1d"
+    },
+    {
+      "name": "canonical_string_escaping",
+      "kind": "canonical",
+      "description": "Deal-fee labels exercising §4 rule 3: U+0001 -> \\u0001 (lowercase hex), tab -> \\t, U+001F -> \\u001f, quote and backslash escaped, \\b \\f \\n \\r short forms; non-ASCII (é), emoji U+1F680 (4 UTF-8 bytes f0 9f 9a 80), U+2028, U+2029, \"/\" and U+007F stay literal. Also shows deal_fees keeps array order and fee-object keys sort (id, kind, label, payer, value).",
+      "projection": {
+        "currency": "GBP",
+        "instrument": "equity",
+        "share_price_micros": "1250000",
+        "cap": "30000000",
+        "minimum": "100000",
+        "platform_fee": {
+          "rate_bps": "250",
+          "minimum": "0",
+          "payer": "investors"
+        },
+        "deal_fees": [
+          {
+            "id": "f_ctl",
+            "label": "Ctl\u0001 and\ttab",
+            "payer": "company",
+            "kind": "fixed",
+            "value": "10000"
+          },
+          {
+            "id": "f_sg",
+            "label": "Société Générale",
+            "payer": "company",
+            "kind": "percent",
+            "value": "100"
+          },
+          {
+            "id": "f_emoji",
+            "label": "Rocket 🚀 fee",
+            "payer": "lead",
+            "kind": "fixed",
+            "value": "5000"
+          },
+          {
+            "id": "f_ls",
+            "label": "Line sep para",
+            "payer": "lead",
+            "kind": "percent",
+            "value": "50"
+          },
+          {
+            "id": "f_lit",
+            "label": "a/bdel",
+            "payer": "company",
+            "kind": "percent",
+            "value": "0"
+          },
+          {
+            "id": "f_esc",
+            "label": "Q\"uote\\back\b\f\n\r\u001f",
+            "payer": "company",
+            "kind": "fixed",
+            "value": "1"
+          }
+        ],
+        "participants": [
+          {
+            "id": "p_001",
+            "order": "1",
+            "status": "active",
+            "decision": "allocate",
+            "terms": {
+              "fee_mode": "on_top",
+              "fee": {
+                "kind": "rate",
+                "rate_bps": "400"
+              },
+              "carry_bps": "2000"
+            },
+            "commitment": "1000000",
+            "cash_due": "1040000",
+            "allocation_amount": "1040000",
+            "scheme": "none"
+          },
+          {
+            "id": "p_002",
+            "order": "2",
+            "status": "withdrawn",
+            "decision": "refund_withdrawn"
+          }
+        ]
+      },
+      "canonical_utf8_hex": "7b22636170223a223330303030303030222c2263757272656e6379223a22474250222c226465616c5f66656573223a5b7b226964223a22665f63746c222c226b696e64223a226669786564222c226c6162656c223a2243746c5c753030303120616e645c74746162222c227061796572223a22636f6d70616e79222c2276616c7565223a223130303030227d2c7b226964223a22665f7367222c226b696e64223a2270657263656e74222c226c6162656c223a22536f6369c3a974c3a92047c3a96ec3a972616c65222c227061796572223a22636f6d70616e79222c2276616c7565223a22313030227d2c7b226964223a22665f656d6f6a69222c226b696e64223a226669786564222c226c6162656c223a22526f636b657420f09f9a8020666565222c227061796572223a226c656164222c2276616c7565223a2235303030227d2c7b226964223a22665f6c73222c226b696e64223a2270657263656e74222c226c6162656c223a224c696e65e280a8736570e280a970617261222c227061796572223a226c656164222c2276616c7565223a223530227d2c7b226964223a22665f6c6974222c226b696e64223a2270657263656e74222c226c6162656c223a22612f627f64656c222c227061796572223a22636f6d70616e79222c2276616c7565223a2230227d2c7b226964223a22665f657363222c226b696e64223a226669786564222c226c6162656c223a22515c22756f74655c5c6261636b5c625c665c6e5c725c7530303166222c227061796572223a22636f6d70616e79222c2276616c7565223a2231227d5d2c22696e737472756d656e74223a22657175697479222c226d696e696d756d223a22313030303030222c227061727469636970616e7473223a5b7b22616c6c6f636174696f6e5f616d6f756e74223a2231303430303030222c22636173685f647565223a2231303430303030222c22636f6d6d69746d656e74223a2231303030303030222c226465636973696f6e223a22616c6c6f63617465222c226964223a22705f303031222c226f72646572223a2231222c22736368656d65223a226e6f6e65222c22737461747573223a22616374697665222c227465726d73223a7b2263617272795f627073223a2232303030222c22666565223a7b226b696e64223a2272617465222c22726174655f627073223a22343030227d2c226665655f6d6f6465223a226f6e5f746f70227d7d2c7b226465636973696f6e223a22726566756e645f77697468647261776e222c226964223a22705f303032222c226f72646572223a2232222c22737461747573223a2277697468647261776e227d5d2c22706c6174666f726d5f666565223a7b226d696e696d756d223a2230222c227061796572223a22696e766573746f7273222c22726174655f627073223a22323530227d2c2273686172655f70726963655f6d6963726f73223a2231323530303030227d",
+      "projection_hash": "sha256:ce9f92553dda8f4d3e0747a36b7db8a17313a643f27568958d06ead7579b7260"
+    },
+    {
+      "name": "canonical_optional_fields_and_null_fee",
+      "kind": "canonical",
+      "description": "Absent optional fields (cap, share_price_micros for a non-equity instrument) are omitted; terms.fee null is written as null (§4 rule 4); platform_fee with all six fields sorts add_on_rate_bps before add_on_threshold; fixed-amount fee.",
+      "projection": {
+        "currency": "GBP",
+        "instrument": "convertible",
+        "minimum": "100000",
+        "platform_fee": {
+          "rate_bps": "250",
+          "minimum": "400000",
+          "maximum": "2000000",
+          "add_on_threshold": "500000000",
+          "add_on_rate_bps": "10",
+          "payer": "lead"
+        },
+        "deal_fees": [],
+        "participants": [
+          {
+            "id": "p_001",
+            "order": "1",
+            "status": "active",
+            "decision": "allocate",
+            "terms": {
+              "fee_mode": "on_top",
+              "fee": null,
+              "carry_bps": "2000"
+            },
+            "commitment": "1000000",
+            "cash_due": "1040000",
+            "allocation_amount": "1040000",
+            "scheme": "none"
+          },
+          {
+            "id": "p_002",
+            "order": "2",
+            "status": "withdrawn",
+            "decision": "refund_withdrawn"
+          },
+          {
+            "id": "p_003",
+            "order": "3",
+            "status": "active",
+            "decision": "allocate",
+            "terms": {
+              "fee_mode": "deducted",
+              "fee": {
+                "kind": "fixed",
+                "amount": "25000"
+              },
+              "carry_bps": "0"
+            },
+            "commitment": "2000000",
+            "cash_due": "2000000",
+            "allocation_amount": "2000000",
+            "scheme": "EIS"
+          }
+        ]
+      },
+      "canonical_utf8_hex": "7b2263757272656e6379223a22474250222c226465616c5f66656573223a5b5d2c22696e737472756d656e74223a22636f6e7665727469626c65222c226d696e696d756d223a22313030303030222c227061727469636970616e7473223a5b7b22616c6c6f636174696f6e5f616d6f756e74223a2231303430303030222c22636173685f647565223a2231303430303030222c22636f6d6d69746d656e74223a2231303030303030222c226465636973696f6e223a22616c6c6f63617465222c226964223a22705f303031222c226f72646572223a2231222c22736368656d65223a226e6f6e65222c22737461747573223a22616374697665222c227465726d73223a7b2263617272795f627073223a2232303030222c22666565223a6e756c6c2c226665655f6d6f6465223a226f6e5f746f70227d7d2c7b226465636973696f6e223a22726566756e645f77697468647261776e222c226964223a22705f303032222c226f72646572223a2232222c22737461747573223a2277697468647261776e227d2c7b22616c6c6f636174696f6e5f616d6f756e74223a2232303030303030222c22636173685f647565223a2232303030303030222c22636f6d6d69746d656e74223a2232303030303030222c226465636973696f6e223a22616c6c6f63617465222c226964223a22705f303033222c226f72646572223a2233222c22736368656d65223a22454953222c22737461747573223a22616374697665222c227465726d73223a7b2263617272795f627073223a2230222c22666565223a7b22616d6f756e74223a223235303030222c226b696e64223a226669786564227d2c226665655f6d6f6465223a226465647563746564227d7d5d2c22706c6174666f726d5f666565223a7b226164645f6f6e5f726174655f627073223a223130222c226164645f6f6e5f7468726573686f6c64223a22353030303030303030222c226d6178696d756d223a2232303030303030222c226d696e696d756d223a22343030303030222c227061796572223a226c656164222c22726174655f627073223a22323530227d7d",
+      "projection_hash": "sha256:ae806dd1be0279621e314eb5fdf5f809f3084a45eb63debcd1a7f43c93fb1ed6"
+    },
+    {
+      "name": "accept_base_request",
+      "kind": "accept",
+      "description": "A valid request: the §2.1 deal with real ids, a withdrawn participant (decision refund_withdrawn, no other fields), bookkeeping with name, email, money_held.",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:de64031f82e8d7ef224fe06a8bace20c18c8cd6dd37bef0283c2de7e6fa00fef\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [],\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1040000\",\n        \"scheme\": \"none\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"order\": \"2\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"Ada Lovelace\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles Babbage\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "name": "accept_reordered_keys_compact",
+      "kind": "accept",
+      "description": "Same request as accept_base_request with keys in reverse order and no whitespace; the projection_hash is identical because the hash is over the canonical form, not the file bytes.",
+      "request_text": "{\"projection_hash\":\"sha256:de64031f82e8d7ef224fe06a8bace20c18c8cd6dd37bef0283c2de7e6fa00fef\",\"projection\":{\"share_price_micros\":\"1250000\",\"platform_fee\":{\"rate_bps\":\"250\",\"payer\":\"investors\",\"minimum\":\"0\"},\"participants\":[{\"terms\":{\"fee_mode\":\"on_top\",\"fee\":{\"rate_bps\":\"400\",\"kind\":\"rate\"},\"carry_bps\":\"2000\"},\"status\":\"active\",\"scheme\":\"none\",\"order\":\"1\",\"id\":\"p_001\",\"decision\":\"allocate\",\"commitment\":\"1000000\",\"cash_due\":\"1040000\",\"allocation_amount\":\"1040000\"},{\"status\":\"withdrawn\",\"order\":\"2\",\"id\":\"p_002\",\"decision\":\"refund_withdrawn\"}],\"minimum\":\"100000\",\"instrument\":\"equity\",\"deal_fees\":[],\"currency\":\"GBP\",\"cap\":\"30000000\"},\"handoff_id\":\"ho_7K2M9QX4\",\"format\":\"goten.allocation-request/1\",\"engine\":\"goten-rules/0.9\",\"deal_id\":\"deal_vec_001\",\"bookkeeping\":{\"participants\":[{\"name\":\"Ada Lovelace\",\"money_held\":\"1040000\",\"id\":\"p_001\",\"email\":\"ada@example.com\"},{\"name\":\"Charles Babbage\",\"id\":\"p_002\"}]}}"
+    },
+    {
+      "name": "accept_non_ascii_label",
+      "kind": "accept",
+      "description": "A company-paid deal fee whose label has non-ASCII and an emoji; the file is UTF-8 and the hash covers the literal characters.",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:3dc580fe31076eca4836657b015dc9d00f750fb9c1ecb85a06b5812f9bf6f2e8\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [\n      {\n        \"id\": \"f_sg\",\n        \"label\": \"Société Générale 🚀\",\n        \"payer\": \"company\",\n        \"kind\": \"percent\",\n        \"value\": \"100\"\n      }\n    ],\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1040000\",\n        \"scheme\": \"none\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"order\": \"2\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"Ada Lovelace\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles Babbage\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "name": "accept_non_ascii_label_escaped_in_file",
+      "kind": "accept",
+      "description": "Same request as accept_non_ascii_label, but the file writes the label with \\u escapes (including the surrogate pair \\ud83d\\ude80 for the emoji). The parsed strings are equal, so the hash is the same; a valid surrogate pair is not a lone surrogate.",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:3dc580fe31076eca4836657b015dc9d00f750fb9c1ecb85a06b5812f9bf6f2e8\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [\n      {\n        \"id\": \"f_sg\",\n        \"label\": \"Soci\\u00e9t\\u00e9 G\\u00e9n\\u00e9rale \\ud83d\\ude80\",\n        \"payer\": \"company\",\n        \"kind\": \"percent\",\n        \"value\": \"100\"\n      }\n    ],\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1040000\",\n        \"scheme\": \"none\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"order\": \"2\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"Ada Lovelace\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles Babbage\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "name": "accept_name_256_utf16_units_with_emoji",
+      "kind": "accept",
+      "description": "bookkeeping name = 10 x U+1F600 (2 UTF-16 code units each) + 236 x \"a\" = 256 UTF-16 code units (246 code points). Limit is 1-256 UTF-16 units (§1, §2.2).",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:de64031f82e8d7ef224fe06a8bace20c18c8cd6dd37bef0283c2de7e6fa00fef\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [],\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1040000\",\n        \"scheme\": \"none\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"order\": \"2\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"😀😀😀😀😀😀😀😀😀😀aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles Babbage\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "name": "refuse_name_257_utf16_units_with_emoji",
+      "kind": "refuse",
+      "description": "Same as the 256 case plus one more \"a\": 257 UTF-16 code units (247 code points, so a code-point count would wrongly accept it).",
+      "reason": "§2.2 / §1: name longer than 256 UTF-16 code units",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:de64031f82e8d7ef224fe06a8bace20c18c8cd6dd37bef0283c2de7e6fa00fef\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [],\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1040000\",\n        \"scheme\": \"none\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"order\": \"2\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"😀😀😀😀😀😀😀😀😀😀aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles Babbage\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "name": "accept_allocation_amount_zero",
+      "kind": "accept",
+      "description": "A participant who committed but paid nothing by close: allocation_amount \"0\" is valid (§2.1); Goten later reports them as no-funds.",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:049dadbac54dd8004f39364d97e0780d649d6743052356ad66be011f05443fa1\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [],\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1040000\",\n        \"scheme\": \"none\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"order\": \"2\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      },\n      {\n        \"id\": \"p_003\",\n        \"order\": \"3\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"deducted\",\n          \"fee\": null,\n          \"carry_bps\": \"0\"\n        },\n        \"commitment\": \"500000\",\n        \"cash_due\": \"500000\",\n        \"allocation_amount\": \"0\",\n        \"scheme\": \"none\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"Ada Lovelace\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles Babbage\"\n      },\n      {\n        \"id\": \"p_003\",\n        \"name\": \"Grace Hopper\",\n        \"money_held\": \"0\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "name": "refuse_duplicate_key",
+      "kind": "refuse",
+      "description": "projection.minimum appears twice with the same value; JSON.parse would silently keep one. Hash is otherwise correct.",
+      "reason": "§5 / §4 rule 1: duplicate keys (RFC 8785)",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:de64031f82e8d7ef224fe06a8bace20c18c8cd6dd37bef0283c2de7e6fa00fef\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [],\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1040000\",\n        \"scheme\": \"none\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"order\": \"2\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"Ada Lovelace\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles Babbage\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "name": "refuse_lone_surrogate",
+      "kind": "refuse",
+      "description": "A bookkeeping name contains the escape \\ud800 (a high surrogate with no low surrogate). It is outside the hash, so the only fault is the lone surrogate.",
+      "reason": "§5: lone surrogates (RFC 8785)",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:de64031f82e8d7ef224fe06a8bace20c18c8cd6dd37bef0283c2de7e6fa00fef\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [],\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1040000\",\n        \"scheme\": \"none\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"order\": \"2\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"Ada Lovelace\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles \\ud800Babbage\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "name": "refuse_participants_out_of_order",
+      "kind": "refuse",
+      "description": "participants listed as order \"2\" then \"1\" (hash computed over the file as sent). Goten refuses, it never re-sorts.",
+      "reason": "§2.1 participants: sorted by order, orders exactly 1..n",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:5589d9284e24f303d0d3e9ede70a739ae349f6de2e496ed5fe773b916c4f5bf8\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [],\n    \"participants\": [\n      {\n        \"id\": \"p_002\",\n        \"order\": \"2\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      },\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1040000\",\n        \"scheme\": \"none\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"Ada Lovelace\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles Babbage\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "name": "refuse_participants_order_gap",
+      "kind": "refuse",
+      "description": "participants orders \"1\", \"3\": sorted but not exactly 1..n.",
+      "reason": "§2.1 participants: orders exactly 1..n",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:a2ef76e8922f21511275f376e685ecbade0a616e3e9b9e1da587bad634eb3497\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [],\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1040000\",\n        \"scheme\": \"none\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"order\": \"3\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"Ada Lovelace\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles Babbage\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "name": "refuse_add_on_threshold_without_rate",
+      "kind": "refuse",
+      "description": "platform_fee has add_on_threshold but no add_on_rate_bps (no default exists).",
+      "reason": "§2.1 platform_fee: add_on_threshold present -> add_on_rate_bps required",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:7d69a6db360002f12885c854ac4ee3c333e0c28c6cf42fd851d42b67738ebaf3\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\",\n      \"add_on_threshold\": \"500000000\"\n    },\n    \"deal_fees\": [],\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1040000\",\n        \"scheme\": \"none\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"order\": \"2\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"Ada Lovelace\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles Babbage\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "name": "refuse_unknown_top_level_field",
+      "kind": "refuse",
+      "description": "An extra top-level field \"comment\".",
+      "reason": "§2.1 (Required vs optional) / §5: any field not listed refuses the file",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:de64031f82e8d7ef224fe06a8bace20c18c8cd6dd37bef0283c2de7e6fa00fef\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [],\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1040000\",\n        \"scheme\": \"none\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"order\": \"2\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"Ada Lovelace\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles Babbage\"\n      }\n    ]\n  },\n  \"comment\": \"hello\"\n}\n"
+    },
+    {
+      "name": "refuse_unknown_projection_field",
+      "kind": "refuse",
+      "description": "An extra field \"tax_relief\" on an allocated participant; the hash is computed over the projection including it, so the only fault is the unknown field.",
+      "reason": "§2.1 (Required vs optional) / §5: any field not listed refuses the file",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:ea36fb27034559ae1fe2bc62a23abe62167d5b8e6b19cb7af7c3f999a80eece6\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [],\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1040000\",\n        \"scheme\": \"none\",\n        \"tax_relief\": \"none\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"order\": \"2\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"Ada Lovelace\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles Babbage\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "name": "refuse_engine_mismatch",
+      "kind": "refuse",
+      "description": "engine \"goten-rules/0.8\" while Goten runs goten-rules/0.9; expected message \"This request needs engine goten-rules/0.8; this copy of Goten runs goten-rules/0.9\".",
+      "reason": "§2 engine: must equal Goten's own rules version",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.8\",\n  \"projection_hash\": \"sha256:de64031f82e8d7ef224fe06a8bace20c18c8cd6dd37bef0283c2de7e6fa00fef\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [],\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1040000\",\n        \"scheme\": \"none\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"order\": \"2\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"Ada Lovelace\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles Babbage\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "name": "refuse_hash_mismatch",
+      "kind": "refuse",
+      "description": "projection_hash is the hash of accept_base_request's projection, but allocation_amount was then edited to \"1039999\". Expected message \"The file was changed after it was exported\".",
+      "reason": "§2 projection_hash / §4: recomputed hash differs",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_7K2M9QX4\",\n  \"deal_id\": \"deal_vec_001\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:de64031f82e8d7ef224fe06a8bace20c18c8cd6dd37bef0283c2de7e6fa00fef\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1250000\",\n    \"cap\": \"30000000\",\n    \"minimum\": \"100000\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"0\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [],\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"2000\"\n        },\n        \"commitment\": \"1000000\",\n        \"cash_due\": \"1040000\",\n        \"allocation_amount\": \"1039999\",\n        \"scheme\": \"none\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"order\": \"2\",\n        \"status\": \"withdrawn\",\n        \"decision\": \"refund_withdrawn\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_001\",\n        \"name\": \"Ada Lovelace\",\n        \"email\": \"ada@example.com\",\n        \"money_held\": \"1040000\"\n      },\n      {\n        \"id\": \"p_002\",\n        \"name\": \"Charles Babbage\"\n      }\n    ]\n  }\n}\n"
+    },
+    {
+      "name": "result_tc_j_45",
+      "kind": "result",
+      "description": "TC-J-45 (same deal as PRD C-ALL-9b example): A on_top 4%, commitment GBP 100,000, cash due and allocation_amount GBP 104,000; B deducted 4%, commitment, cash due and allocation_amount GBP 100,000; pro-rata platform fee 2.5% minimum GBP 4,000 paid by investors; equity at GBP 1.00 (1000000 micros); no cap; minimum 0. B = GBP 196,000 so the fee is GBP 4,900 (above the minimum), split 2,500 / 2,400 by T. micro_shares = floor(invested/price x 1,000,000) = invested pence x 10,000. totals.wire = invested - company_fees (no company fees). No deal fees, so deal_fees is []. Key order does not matter.",
+      "request_text": "{\n  \"format\": \"goten.allocation-request/1\",\n  \"handoff_id\": \"ho_TCJ45\",\n  \"deal_id\": \"deal_tc_j_45\",\n  \"engine\": \"goten-rules/0.9\",\n  \"projection_hash\": \"sha256:72b0fb50f3374050809cf04e156db4a43735b418bf21edc9283a80b516b5d6d9\",\n  \"projection\": {\n    \"currency\": \"GBP\",\n    \"instrument\": \"equity\",\n    \"share_price_micros\": \"1000000\",\n    \"minimum\": \"0\",\n    \"platform_fee\": {\n      \"rate_bps\": \"250\",\n      \"minimum\": \"400000\",\n      \"payer\": \"investors\"\n    },\n    \"deal_fees\": [],\n    \"participants\": [\n      {\n        \"id\": \"p_a\",\n        \"order\": \"1\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"on_top\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"0\"\n        },\n        \"commitment\": \"10000000\",\n        \"cash_due\": \"10400000\",\n        \"allocation_amount\": \"10400000\",\n        \"scheme\": \"none\"\n      },\n      {\n        \"id\": \"p_b\",\n        \"order\": \"2\",\n        \"status\": \"active\",\n        \"decision\": \"allocate\",\n        \"terms\": {\n          \"fee_mode\": \"deducted\",\n          \"fee\": {\n            \"kind\": \"rate\",\n            \"rate_bps\": \"400\"\n          },\n          \"carry_bps\": \"0\"\n        },\n        \"commitment\": \"10000000\",\n        \"cash_due\": \"10000000\",\n        \"allocation_amount\": \"10000000\",\n        \"scheme\": \"none\"\n      }\n    ]\n  },\n  \"bookkeeping\": {\n    \"participants\": [\n      {\n        \"id\": \"p_a\",\n        \"name\": \"Investor A\"\n      },\n      {\n        \"id\": \"p_b\",\n        \"name\": \"Investor B\"\n      }\n    ]\n  }\n}\n",
+      "expected_result": {
+        "format": "goten.allocation-result/1",
+        "handoff_id": "ho_TCJ45",
+        "engine": "goten-rules/0.9",
+        "projection_hash": "sha256:72b0fb50f3374050809cf04e156db4a43735b418bf21edc9283a80b516b5d6d9",
+        "can_close": true,
+        "blockers": [],
+        "participants": [
+          {
+            "id": "p_a",
+            "allocated": true,
+            "exclusion": null,
+            "target": "10000000",
+            "own_fee": "400000",
+            "platform_fee_share": "250000",
+            "invested": "9750000",
+            "refund": "0",
+            "micro_shares": "97500000000"
+          },
+          {
+            "id": "p_b",
+            "allocated": true,
+            "exclusion": null,
+            "target": "9600000",
+            "own_fee": "400000",
+            "platform_fee_share": "240000",
+            "invested": "9360000",
+            "refund": "0",
+            "micro_shares": "93600000000"
+          }
+        ],
+        "totals": {
+          "received": "20400000",
+          "invested": "19110000",
+          "investor_fees": "800000",
+          "platform_fee": "490000",
+          "platform_fee_payer": "investors",
+          "refunds": "0",
+          "company_fees": "0",
+          "lead_invoice": "0",
+          "wire": "19110000"
+        },
+        "deal_fees": []
+      }
+    }
+  ]
+}

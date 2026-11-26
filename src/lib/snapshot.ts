@@ -14,11 +14,12 @@ export interface HoldingsTable {
   sharePriceMicros: number | null
 }
 
-export function holdingsFromAllocation(r: AllocationResult, priceMicros: number, sourceVersion: number): Snapshot<HoldingsTable> {
+export function holdingsFromAllocation(r: AllocationResult, priceMicros: number | null, sourceVersion: number): Snapshot<HoldingsTable> {
   return {
     sourceVersion,
     data: {
-      rows: r.rows.filter((x) => x.participating).map((x) => ({ id: x.id, name: x.name, capital: x.invested })),
+      // C-ALL-12 / C-DIS-8 v0.9: each person's own carry travels to the holding; key only when set
+      rows: r.rows.filter((x) => x.participating).map((x) => ({ id: x.id, name: x.name, capital: x.invested, ...(x.carryBps !== null ? { carryBps: x.carryBps } : {}) })),
       sharePriceMicros: priceMicros,
     },
   }

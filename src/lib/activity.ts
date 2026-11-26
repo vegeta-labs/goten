@@ -23,6 +23,9 @@ export type LogEvent =
   | 'log_exported'
   | 'message_copied'
   | 'sample_loaded'
+  | 'handoff_request_imported'
+  | 'handoff_result_exported'
+  | 'platform_fee_payer_changed'
 
 export const LOG_EVENTS: readonly LogEvent[] = [
   'import',
@@ -43,6 +46,9 @@ export const LOG_EVENTS: readonly LogEvent[] = [
   'log_exported',
   'message_copied',
   'sample_loaded',
+  'handoff_request_imported',
+  'handoff_result_exported',
+  'platform_fee_payer_changed',
 ]
 
 export interface LogEntry {

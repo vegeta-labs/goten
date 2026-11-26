@@ -2,7 +2,7 @@
 // rewritten; a mark or an adjustment is recorded beside it and decides the effective cash due (Tech Design §9.2.1).
 import { formatMoney, parseDate, type Currency } from './money'
 import { normRef } from './reconcile'
-import type { Fee, FeeBasis, FeePayer } from './allocation'
+import type { Fee, FeeBasis, FeePayer, Instrument, PlatformFee } from './allocation'
 
 /** C-REC-7: a mark on the investor, not a decision on a bank line. */
 export interface Withdrawal {
@@ -27,7 +27,16 @@ export interface FeePayerChange {
   /** the fee's rate and the fee basis when applied: a change to either voids the whole change (compared by value) */
   feeAtApply: { rateBps: number; basis: FeeBasis }
   /** the allocation settings right after applying (the fee table with the new payer), for the reminder and the re-check */
-  settingsAtApply: { minimum: number; cap: number | null; priceMicros: number; basis: FeeBasis; fees: Fee[] }
+  settingsAtApply: {
+    minimum: number
+    cap: number | null
+    priceMicros: number | null
+    basis: FeeBasis
+    fees: Fee[]
+    /** v0.9 (C-ALL-11): absent in changes saved before v0.9 = equity, no platform fee */
+    instrument?: Instrument
+    platformFee?: PlatformFee | null
+  }
   /** T_i of every participant of the commitment allocation */
   targets: Record<string, number>
   /** one line for every investor in scope, including those whose amount did not change and those not participating */
@@ -109,7 +118,7 @@ export function changeBanner(change: Pick<FeePayerChange, 'feeLabel' | 'to' | 'c
 /** C-ALL-11: the allocation settings, compared by value with those saved at apply (fee labels do not count). */
 export function settingsChanged(change: FeePayerChange, now: FeePayerChange['settingsAtApply']): boolean {
   const key = (s: FeePayerChange['settingsAtApply']) =>
-    JSON.stringify([s.minimum, s.cap, s.priceMicros, s.basis, s.fees.map((f) => [f.id, f.kind, f.value, f.payer])])
+    JSON.stringify([s.minimum, s.cap, s.priceMicros, s.basis, s.fees.map((f) => [f.id, f.kind, f.value, f.payer]), s.instrument ?? 'equity', s.platformFee ?? null])
   return key(change.settingsAtApply) !== key(now)
 }
 
@@ -121,6 +130,7 @@ export function withdrawalProblem(consent: boolean, on: string): string | null {
 }
 
 /** C-REC-7: "Withdrawn: 1 investor, £3,000.00 to refund". */
-export function withdrawnSummary(count: number, toRefund: number, currency: Currency): string {
-  return `Withdrawn: ${count} ${count === 1 ? 'investor' : 'investors'}, ${formatMoney(toRefund, currency)} to refund`
+export function withdrawnSummary(count: number, toRefund: number, currency: Currency, anyRefundOnly = false): string {
+  // C-REC-9 v0.9: the same line counts refund-only investors, and says so when there are any
+  return `${anyRefundOnly ? 'Withdrawn or refund only' : 'Withdrawn'}: ${count} ${count === 1 ? 'investor' : 'investors'}, ${formatMoney(toRefund, currency)} to refund`
 }

@@ -6,7 +6,7 @@ export const MAX_INVESTORS = 500
 export const MAX_BANK_LINES = 2_000
 export const MAX_HOLDINGS = 500
 export const MAX_FEES = 20
-export const LIMITS = { investorId: 40, name: 120, txnId: 80, freeText: 200 }
+export const LIMITS = { investorId: 40, name: 256, txnId: 80, freeText: 200 } // name 120 → 256 in v0.9 (PRD field table)
 
 export class Errors {
   list: InputError[] = []

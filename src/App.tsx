@@ -154,7 +154,8 @@ export default function App({ storage = browserStorage() }: { storage?: Storage 
     dispatch({
       type: 'handoffToExit',
       holdings: holdings.data.rows,
-      sharePriceMicros: holdings.data.sharePriceMicros!,
+      sharePriceMicros: holdings.data.sharePriceMicros,
+      instrument: allocDerived.input?.instrument ?? 'equity',
     })
     setTab('exit')
   }

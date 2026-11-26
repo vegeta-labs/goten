@@ -19,7 +19,7 @@ describe('closing allocation', () => {
   it('TC-ALL-01 nominee, no fees: everything is invested', () => {
     const r = run({ investors: [inv('A', 100_000)] })
     expect(row(r, 'A')).toMatchObject({ invested: 100_000, refund: 0, participating: true })
-    expect(formatMicroShares(row(r, 'A').microShares)).toBe('1000.000000')
+    expect(formatMicroShares(row(r, 'A').microShares!)).toBe('1000.000000')
   })
 
   it('TC-ALL-02 3% deducted from £10,000 → £9,700 invested, £300 fee', () => {
@@ -36,14 +36,14 @@ describe('closing allocation', () => {
     const r = run({ priceMicros: 2_413_700, investors: [inv('A', 500_000, 'SEIS')] })
     const a = row(r, 'A')
     expect(a.invested).toBe(500_000)
-    expect(formatMicroShares(a.microShares)).toBe('2071.508472')
+    expect(formatMicroShares(a.microShares!)).toBe('2071.508472')
     expect(a).toMatchObject({ claimableShares: 2071, claimableAmount: 499_877, nonClaimable: 123 })
   })
 
   it('TC-ALL-06 Isla: £1,000 at the £1,000 minimum is in, with fractional shares', () => {
     const r = run({ minimum: 100_000, priceMicros: 2_413_700, investors: [inv('Isla', 100_000)] })
     expect(row(r, 'Isla')).toMatchObject({ participating: true, invested: 100_000 })
-    expect(formatMicroShares(row(r, 'Isla').microShares)).toBe('414.301694')
+    expect(formatMicroShares(row(r, 'Isla').microShares!)).toBe('414.301694')
     expect(r.blockers).toEqual([])
   })
 
@@ -143,10 +143,10 @@ describe('closing allocation', () => {
       expect(text).toContain(line)
     const csvRows = allocationCsv(r, 'GBP').split(/\r?\n/)
     expect(csvRows).toHaveLength(13)
-    expect(csvRows[1]).toBe('c01,Amelia Hart,SEIS,10000.00,9700.00,4018.726436,300.00,300.00,0.00,4018,9698.24,allocated,GBP')
+    expect(csvRows[1]).toBe('c01,Amelia Hart,SEIS,10000.00,9700.00,4018.726436,300.00,300.00,0.00,4018,9698.24,allocated,,,,,,,GBP') // v0.9: six empty own-terms and platform-fee columns before currency
     const header = allocationCsv(r, 'GBP').split(/\r?\n/)[0]
     expect(header).toBe(
-      'investor_id,name,scheme,received,invested,units,fee_Platform fee,fees_total,refund,seis_eis_claimable_shares,seis_eis_claimable_amount,status,currency',
+      'investor_id,name,scheme,received,invested,units,fee_Platform fee,fees_total,refund,seis_eis_claimable_shares,seis_eis_claimable_amount,status,own_fee_mode,own_fee_rate,own_fee_fixed,own_fee,carry,platform_fee,currency', // v0.9 columns before currency
     )
   })
 
@@ -168,7 +168,7 @@ describe('closing allocation', () => {
     const g = Object.values(r.byScheme)
     expect(g.reduce((a, b) => a + b.invested, 0)).toBe(r.totals.invested)
     expect(g.reduce((a, b) => a + b.investors, 0)).toBe(r.rows.filter((x) => x.participating).length)
-    expect(g.reduce((a, b) => a + b.microShares, 0n)).toBe(r.rows.reduce((a, b) => a + b.microShares, 0n))
+    expect(g.reduce((a, b) => a + b.microShares!, 0n)).toBe(r.rows.reduce((a, b) => a + b.microShares!, 0n))
   })
 
   it('TC-ALL-25 the S/EIS remainder warning uses the agreed wording', () => {

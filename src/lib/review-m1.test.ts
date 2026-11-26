@@ -74,7 +74,7 @@ describe('M1 review regressions', () => {
       'name,reference,cash_due\nA,UK-NW-A-001,10\n',
       'name,reference,cash_due\nB,NW-001,10\nC,nw001,10\n',
       'name,reference,cash_due\nD,,10\n',
-      `name,reference,cash_due\n${'x'.repeat(121)},NW-001,10\n`,
+      `name,reference,cash_due\n${'x'.repeat(257)},NW-001,10\n`, // v0.9: limit 256 (was 120)
       'name,email,reference,cash_due\nE,bad,NW-001,10\n',
     ]
     for (const csv of bad) expect(importCommitments(csv, 'GBP').ok, csv).toBe(false)

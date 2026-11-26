@@ -64,9 +64,9 @@ describe('sample deal (Test Plan §3)', () => {
     expect(a.result.rows.filter((x) => x.participating)).toHaveLength(11)
     const row = (id: string) => a.result.rows.find((x) => x.id === id)!
     expect(row('c01')).toMatchObject({ invested: 970_000, claimableShares: 4018, claimableAmount: 969_824, nonClaimable: 176 })
-    expect(formatMicroShares(row('c01').microShares)).toBe('4018.726436')
+    expect(formatMicroShares(row('c01').microShares!)).toBe('4018.726436')
     expect(row('c04')).toMatchObject({ invested: 194_000, claimableShares: 803, claimableAmount: 193_820, nonClaimable: 180 })
-    expect(formatMicroShares(row('c04').microShares)).toBe('803.745287')
+    expect(formatMicroShares(row('c04').microShares!)).toBe('803.745287')
     expect(row('c09')).toMatchObject({ participating: true, invested: 97_000 })
 
     const snap = holdingsFromAllocation(a.result, SAMPLE_PRICE_MICROS, 1)
@@ -107,7 +107,7 @@ function sampleChain() {
       invested: x.invested,
       fees: x.fees,
       refund: x.refund,
-      shares: formatMicroShares(x.microShares),
+      shares: formatMicroShares(x.microShares!),
       claimableShares: x.claimableShares,
       claimableAmount: x.claimableAmount,
     })),

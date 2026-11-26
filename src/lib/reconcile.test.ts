@@ -180,7 +180,7 @@ describe('reconciliation', () => {
     expect(ledgerCsv(r, 'GBP').split(/\r?\n/)[0]).toBe('transaction_id,date,amount,payer,reference,status,investor_id,investor_name,decided_by,withdrawn_on,currency')
     expect(ledgerCsv(r, 'GBP').split(/\r?\n/)[1]).toMatch(/,5000\.00,J SMITH,NW-001,auto,john,John Smith,auto,,GBP$/)
     expect(chaseListCsv(r, 'GBP', 'Deal').split(/\r?\n/)[0]).toBe(
-      'investor_id,name,email,committed,received,difference,status,committed_original,committed_adjustment,message,currency',
+      'investor_id,name,email,committed,received,difference,status,committed_original,committed_adjustment,message,refunded,currency' /* v0.9 */,
     )
   })
 

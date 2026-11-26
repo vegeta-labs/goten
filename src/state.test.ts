@@ -1,6 +1,6 @@
 // State layer (Tech Design §2): text inputs, snapshots with versions, local saving.
 import { describe, expect, it } from 'vitest'
-import { allocationStale, exitStale, initialState, loadState, parseSaved, reducer, saveState, STORAGE_KEY, type Action, type AppState } from './state'
+import { allocationStale, exitStale, initialState, loadState, NO_TERMS, parseSaved, reducer, saveState, STORAGE_KEY, type Action, type AppState } from './state'
 import { deriveAllocation, deriveBankLines, deriveDistribution, deriveReconcile } from './derive'
 import { holdingsFromAllocation } from './lib/snapshot'
 import { decide, handoffToAllocation, reconcile } from './lib/reconcile'
@@ -96,7 +96,7 @@ describe('state: sample and hand-off', () => {
   })
 
   it('R-X-07 importing allocation investors directly ends the link to reconciliation', () => {
-    const s = run(handedOff(reviewed()), { type: 'replaceInvestors', rows: [{ id: 'a', name: 'A', received: '100', scheme: 'none' }] })
+    const s = run(handedOff(reviewed()), { type: 'replaceInvestors', rows: [{ id: 'a', name: 'A', received: '100', scheme: 'none', ...NO_TERMS }] })
     expect(s.allocation.handoffVersion).toBeNull()
     expect(s.allocation.excess).toEqual([])
     expect(allocationStale(run(s, { type: 'undoDecision', lineId: 't03' }))).toBe(false)
@@ -299,7 +299,7 @@ describe('exit distribution state (R-ALL-11, R-X-07)', () => {
   it('R-ALL-11 hand-off carries participants only, with the share price', () => {
     const s = exitOf(handedOff(reviewed()))
     expect(s.exit.holdings).toHaveLength(11)
-    expect(s.exit.holdings[0]).toEqual({ id: 'c01', name: 'Amelia Hart', capital: '9700.00' })
+    expect(s.exit.holdings[0]).toEqual({ id: 'c01', name: 'Amelia Hart', capital: '9700.00', carry: '' }) // v0.9: personal carry, empty
     expect(s.exit.sharePriceMicros).toBe(2_413_700)
     expect(exitStale(s)).toBe(false)
   })
@@ -316,7 +316,7 @@ describe('exit distribution state (R-ALL-11, R-X-07)', () => {
   })
 
   it('a direct holdings import ends the link to the allocation', () => {
-    const s = run(exitOf(handedOff(reviewed())), { type: 'replaceHoldings', rows: [{ id: 'a', name: 'A', capital: '1' }], sharePriceMicros: null })
+    const s = run(exitOf(handedOff(reviewed())), { type: 'replaceHoldings', rows: [{ id: 'a', name: 'A', capital: '1', carry: '' }], sharePriceMicros: null })
     expect(s.exit.handoffVersion).toBeNull()
     expect(exitStale(run(s, { type: 'setAllocation', patch: { price: '5' } }))).toBe(false)
   })
@@ -335,7 +335,7 @@ describe('exit distribution state (R-ALL-11, R-X-07)', () => {
   it('R-X-07 a new hand-off into the allocation and changes to its investor list or currency mark the exit out of date', () => {
     const s = exitOf(handedOff(reviewed()))
     expect(exitStale(handedOff(s))).toBe(true)
-    expect(exitStale(run(s, { type: 'replaceInvestors', rows: [{ id: 'a', name: 'A', received: '1', scheme: 'none' }] }))).toBe(true)
+    expect(exitStale(run(s, { type: 'replaceInvestors', rows: [{ id: 'a', name: 'A', received: '1', scheme: 'none', ...NO_TERMS }] }))).toBe(true)
     expect(exitStale(run(s, { type: 'addInvestor' }))).toBe(true)
     expect(exitStale(run(s, { type: 'deleteInvestor', index: 0 }))).toBe(true)
     expect(exitStale(run(s, { type: 'setDeal', patch: { currency: 'EUR' } }))).toBe(true)
@@ -443,7 +443,7 @@ describe('local saving (Tech Design §1)', () => {
     const good = JSON.parse(JSON.stringify(reviewed()))
     expect(parseSaved('{')).toBeNull()
     expect(parseSaved('null')).toBeNull()
-    expect(parseSaved(JSON.stringify({ ...good, schema: 3 }))).toBeNull()
+    expect(parseSaved(JSON.stringify({ ...good, schema: 4 }))).toBeNull() // v0.9: 3 is now current
     expect(parseSaved(JSON.stringify({ ...good, commitments: [{ id: 1 }] }))).toBeNull()
     expect(parseSaved(JSON.stringify({ ...good, bank: [{ ...good.bank[0], txnId: 5 }] }))).toBeNull()
     expect(parseSaved(JSON.stringify({ ...good, decisions: { t03: { kind: 'assign' } } }))).toBeNull()

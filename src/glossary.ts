@@ -14,6 +14,13 @@ export const GLOSSARY = {
   withdrawal: 'Before closing, an investor can pull out with their written consent: everything they paid is refunded and they are left out of the allocation.',
   'fee payer': 'Who bears a fee: the investors (from or on top of what they wire), the company (from the wire it receives) or the lead (by invoice).',
   'MT103 / UETR': 'An MT103 is the bank’s record of an international transfer; the UETR on it is a 36-character number that tracks the payment between banks.',
+  // v0.9 (decision J)
+  'own terms': 'One investor’s own fee terms: a fee mode and one cash fee (a rate, a fixed amount or none). They replace the deal’s investor-paid fees for that person.',
+  'pro-rata platform fee': 'A fee on the total invested, with an optional minimum, maximum and add-on. When investors pay it, it comes out of each investment in proportion; nobody’s cash due changes.',
+  'refund only': 'An investor who will not invest (withdrawn, or another final state such as a failed identity check): their money is matched but never chased or allocated, and all of it is refunded.',
+  'net received': 'Received minus what has already been refunded or is on its way back. The bank lines themselves are unchanged.',
+  'convertible / fund units': 'Instruments without a share price at closing: the allocation splits amounts only and shows no share counts.',
+  'carry payee': 'Someone who receives part of the carry. Their shares add up to 100%; without a list, the lead receives it all.',
 } as const
 
 export type Term = keyof typeof GLOSSARY

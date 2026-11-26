@@ -246,7 +246,7 @@ export const STEPS: Step[] = [
     targets: () => ['seis-c01'],
     text: (c) => {
       const a = allocRow(c, 'c01')
-      return `Investors hold fractional shares through the nominee, but S/EIS relief needs whole shares. Amelia holds ${a ? formatMicroShares(a.microShares) : MISSING} shares: ${a?.claimableShares.toLocaleString('en-GB') ?? MISSING} can be claimed, ${money(c, a?.nonClaimable)} can't. The tool flags it; it doesn't judge eligibility.`
+      return `Investors hold fractional shares through the nominee, but S/EIS relief needs whole shares. Amelia holds ${a?.microShares != null ? formatMicroShares(a.microShares) : MISSING} shares: ${a?.claimableShares?.toLocaleString('en-GB') ?? MISSING} can be claimed, ${money(c, a?.nonClaimable ?? undefined)} can't. The tool flags it; it doesn't judge eligibility.`
     },
   },
   {
@@ -373,6 +373,10 @@ function tourData(x: AppState): string {
     x.allocation.fees,
     x.allocation.investors,
     x.allocation.excess,
+    // v0.9 allocation settings and the imported request (Codex M7 r2 #3)
+    x.allocation.instrument,
+    x.allocation.platformFee,
+    x.allocation.handoffRequest,
     { ...x.exit, handoffVersion: null },
     Object.entries(x.withdrawals).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
     x.feePayerChanges,

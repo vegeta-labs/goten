@@ -15,6 +15,7 @@ import {
   parseSaved,
   type Action,
   type AppState,
+  NO_TERMS,
 } from './state'
 import { deriveAllocation, deriveChangeRecheck, deriveReconcile } from './derive'
 import { decide, handoffToAllocation, reconcile } from './lib/reconcile'
@@ -712,7 +713,7 @@ describe('R-REC-01.3 what an investor list import would void', () => {
 
   it('TC-REC-55 a blank ID on a new investor does not get the blame for someone else leaving', () => {
     const s = run(reviewed(), withdraw('c12'))
-    const newcomer = { id: 'gen-new', name: 'New Person', email: '', reference: 'NW-777', cashDue: '1000', scheme: 'none' }
+    const newcomer = { id: 'gen-new', name: 'New Person', email: '', reference: 'NW-777', cashDue: '1000', scheme: 'none', ...NO_TERMS, refunded: '', refundOnly: '' }
     const rows = [...s.commitments.filter((c) => c.id !== 'c12'), newcomer]
     expect(investorImportLoss(s, rows, new Set(['gen-new']))).toEqual({ decisions: 0, withdrawals: 1, adjustments: 0, blankIds: false })
   })

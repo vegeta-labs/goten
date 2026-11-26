@@ -131,6 +131,27 @@ export function mulDiv(a: number | bigint, b: number | bigint, d: number | bigin
   return 2n * r >= D ? q + 1n : q
 }
 
+/**
+ * C-ALL-9b pro-rata platform fee on base B (minor units): half-up(min(max, max(min, B × rate))) + half-up(max(0, B − threshold) × add-on).
+ * Each part is rounded half-up on its own; exact BigInt throughout.
+ */
+export function platformFeeAmount(
+  B: number,
+  pf: { rateBps: number; minimum: number; maximum: number | null; addOnThreshold: number | null; addOnBps: number },
+): number {
+  let x = BigInt(B) * BigInt(pf.rateBps) // in 1/10,000 of a minor unit
+  const lo = BigInt(pf.minimum) * 10_000n
+  if (x < lo) x = lo
+  if (pf.maximum !== null) {
+    const hi = BigInt(pf.maximum) * 10_000n
+    if (x > hi) x = hi
+  }
+  const first = mulDiv(x, 1, 10_000, 'halfUp')
+  const over = pf.addOnThreshold === null ? 0n : BigInt(Math.max(0, B - pf.addOnThreshold))
+  const second = mulDiv(over, pf.addOnBps, 10_000, 'halfUp')
+  return toNum(first + second)
+}
+
 /** Number version that refuses to lose precision. */
 export function toNum(x: bigint): number {
   const n = Number(x)

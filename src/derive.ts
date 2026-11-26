@@ -2,7 +2,7 @@
 // No calculation happens here: values are only parsed, then the engines in src/lib validate and compute.
 import { parseDate, parseMoney, parseMultiple, parsePercent, parsePrice, parseYears, trimAscii, type Currency } from './lib/money'
 import { validateReconcile, type BankLine, type Commitment, type ReconcileInput } from './lib/reconcile'
-import { validateAllocation, type AllocationInput, type Fee, type TaxScheme } from './lib/allocation'
+import { validateAllocation, type AllocationInput, type Fee, type OwnFee, type OwnTerms, type PlatformFee, type TaxScheme } from './lib/allocation'
 import { validateHoldings, validateWaterfall, type Holding } from './lib/waterfall'
 import type { InputError } from './lib/outcome'
 import type { CarryTerms, WaterfallInput } from './lib/waterfall'
@@ -10,7 +10,7 @@ import { activeChange, effectiveDue, notCovered, settingsChanged, withdrawalStan
 import type { FeePayer } from './lib/allocation'
 import { previewFeePayerChange, type FeePayerInput, type FeePayerPreview } from './lib/feePayer'
 import type { Outcome } from './lib/outcome'
-import type { AppState, BankRow, CommitmentRow, DealText } from './state'
+import type { AppState, BankRow, CommitmentRow, DealText, TermsText } from './state'
 
 export interface Derived<T> {
   /** null whenever any input is wrong: the engine is not run and no figures are shown */
@@ -32,6 +32,42 @@ class Collector {
     if (r.ok) return r.value
     this.errors.push({ where, message: r.reason })
     return placeholder
+  }
+}
+
+/** R-DEAL-05 text → engine terms (v0.9); blank fields leave the keys out, so v0.8 rows give v0.8 values. */
+export function termsOf(t: TermsText, cur: Currency, c: Collector, at: string): { ownTerms?: OwnTerms; carryBps?: number } {
+  const out: { ownTerms?: OwnTerms; carryBps?: number } = {}
+  const rawMode = trimAscii(t.ownFeeMode).toLowerCase()
+  const rate = trimAscii(t.ownFeeRate)
+  const fixed = trimAscii(t.ownFeeFixed)
+  const mode = rawMode === 'on_top' || rawMode === 'on top' || rawMode === 'added' ? 'onTop' : rawMode === 'deducted' || rawMode === 'from wire' ? 'deducted' : null
+  if (rawMode && !mode) c.errors.push({ where: `${at}, own fee mode`, message: 'must be on_top or deducted' })
+  if (rate && fixed) c.errors.push({ where: `${at}, own fee`, message: 'fill in a rate or a fixed fee, not both' })
+  else if ((rate || fixed) && !rawMode) c.errors.push({ where: `${at}, own fee mode`, message: 'required when an own fee is given' })
+  if (mode) {
+    let fee: OwnFee = null
+    if (rate) fee = { kind: 'percent', bps: c.take(parsePercent(rate), `${at}, own fee rate`, 0) }
+    else if (fixed) fee = { kind: 'fixed', amount: c.take(parseMoney(fixed, cur), `${at}, own fixed fee`, 1) }
+    out.ownTerms = { mode, fee }
+  }
+  if (trimAscii(t.carry)) out.carryBps = c.take(parsePercent(t.carry), `${at}, carry`, 0)
+  return out
+}
+
+/** R-ALL-13 text → engine value, or null when no platform fee is set (v0.9). */
+function platformFeeOf(s: Pick<AppState, 'deal' | 'allocation'>, c: Collector): PlatformFee | null {
+  const p = s.allocation.platformFee
+  if (!p) return null
+  const cur = s.deal.currency
+  const money = (raw: string, where: string) => (trimAscii(raw) === '' ? null : c.take(parseMoney(raw, cur), `Platform fee, ${where}`, 0))
+  return {
+    rateBps: trimAscii(p.rate) === '' ? 0 : c.take(parsePercent(p.rate), 'Platform fee, rate', 0),
+    minimum: money(p.minimum, 'minimum') ?? 0,
+    maximum: money(p.maximum, 'maximum'),
+    addOnThreshold: money(p.threshold, 'add-on threshold'),
+    addOnBps: trimAscii(p.addOnRate) === '' ? 0 : c.take(parsePercent(p.addOnRate), 'Platform fee, add-on rate', 0),
+    payer: p.payer,
   }
 }
 
@@ -92,7 +128,14 @@ export function commitmentOf(r: CommitmentRow, cur: Currency, c = new Collector(
     cashDue: c.take(parseMoney(r.cashDue, cur), `${at}, cash due`, 1),
     scheme: scheme ?? 'none',
   }
-  return { value, ok: c.errors.length === before }
+  // `ok` covers only the fingerprint fields: a typo in a v0.9 field shows as an error but never voids a decision (§10.2)
+  const ok = c.errors.length === before
+  Object.assign(value, termsOf(r, cur, c, at))
+  if (trimAscii(r.refunded ?? '')) value.refunded = c.take(parseMoney(r.refunded, cur), `${at}, refunded`, 0)
+  const flag = trimAscii(r.refundOnly ?? '').toLowerCase()
+  if (flag === 'withdrawn' || flag === 'closed') value.refundOnly = flag
+  else if (flag) c.errors.push({ where: `${at}, refund only`, message: 'must be withdrawn, closed or empty' })
+  return { value, ok }
 }
 
 /** One bank row → engine value; see commitmentOf. */
@@ -121,7 +164,9 @@ export function deriveAllocation(s: Pick<AppState, 'deal' | 'allocation'>): Deri
   const cur = s.deal.currency
   const a = s.allocation
   const minimum = minimumOf(s.deal, c)
-  const priceMicros = c.take(parsePrice(a.price, cur), 'Allocation, share price', 1_000_000)
+  const instrument = a.instrument ?? 'equity'
+  // R-DEAL-06: only equity has a share price; a price typed for another instrument is an error from the engine
+  const priceMicros = instrument === 'equity' || trimAscii(a.price) !== '' ? c.take(parsePrice(a.price, cur), 'Allocation, share price', 1_000_000) : null
   const cap = trimAscii(a.cap) === '' ? null : c.take(parseMoney(a.cap, cur), 'Allocation, round cap', 1)
   const fees: Fee[] = a.fees.map((f, i) => {
     const at = `Fee ${i + 1}${f.label ? ` (${f.label})` : ''}`
@@ -133,9 +178,10 @@ export function deriveAllocation(s: Pick<AppState, 'deal' | 'allocation'>): Deri
     const at = `Allocation investors row ${i + 1}`
     const scheme = parseScheme(v.scheme)
     if (!scheme) c.errors.push({ where: `${at}, scheme`, message: 'must be none, SEIS or EIS' })
-    return { id: v.id, name: v.name, received: c.take(parseMoney(v.received, cur), `${at}, received`, 0), scheme: scheme ?? 'none' }
+    return { id: v.id, name: v.name, received: c.take(parseMoney(v.received, cur), `${at}, received`, 0), scheme: scheme ?? 'none', ...termsOf(v, cur, c, at) }
   })
-  const input: AllocationInput = { feeBasis: s.deal.feeBasis, minimum, cap, priceMicros, fees, investors }
+  const platformFee = platformFeeOf(s, c)
+  const input: AllocationInput = { feeBasis: s.deal.feeBasis, minimum, cap, priceMicros, fees, investors, instrument, platformFee }
   const errors = [...c.errors, ...validateAllocation(input).map(friendly)]
   return { input: errors.length ? null : input, errors }
 }
@@ -165,8 +211,8 @@ export function deriveFeePayerInput(
       return { id: v.id, name: v.name, cashDue: v.cashDue, scheme: v.scheme, reference: v.reference }
     })
   if (c.errors.length) return { input: null, errors: c.errors }
-  const { feeBasis, minimum, cap, priceMicros, fees } = a.input
-  return { input: { feeBasis, minimum, cap, priceMicros, fees, feeId, to, investors }, errors: [] }
+  const { feeBasis, minimum, cap, priceMicros, fees, instrument, platformFee } = a.input
+  return { input: { feeBasis, minimum, cap, priceMicros, fees, instrument, platformFee, feeId, to, investors }, errors: [] }
 }
 
 /**
@@ -178,8 +224,8 @@ export function deriveChangeRecheck(s: FeeChangeData): { change: FeePayerChange;
   if (!change) return null
   const a = deriveAllocation(s)
   if (!a.input) return { change, changed: false, recheck: null }
-  const { feeBasis, minimum, cap, priceMicros, fees } = a.input
-  const changed = settingsChanged(change, { minimum, cap, priceMicros, basis: feeBasis, fees })
+  const { feeBasis, minimum, cap, priceMicros, fees, instrument, platformFee } = a.input
+  const changed = settingsChanged(change, { minimum, cap, priceMicros, basis: feeBasis, fees, instrument, platformFee })
   if (!changed) return { change, changed, recheck: null }
   // the investors the change still covers: its standing lines, not whoever is in the allocation table now — someone
   // withdrawn at a later hand-off and then reinstated is still adjusted and must be re-checked (Codex M6 r3 #1)
@@ -203,7 +249,11 @@ export function deriveDistribution(s: Pick<AppState, 'deal' | 'exit'>): Derived<
     id: h.id,
     name: h.name,
     capital: c.take(parseMoney(h.capital, cur), `Holdings row ${i + 1}, amount invested`, 1),
+    // C-DIS-8 (v0.9): key only when filled
+    ...(trimAscii(h.carry ?? '') ? { carryBps: c.take(parsePercent(h.carry), `Holdings row ${i + 1}, carry`, 0) } : {}),
   }))
+  // C-DIS-9 (v0.9)
+  const payees = (x.payees ?? []).map((p, i) => ({ name: p.name, shareBps: c.take(parsePercent(p.share), `Payee ${i + 1}, share`, 1) }))
   const proceeds = c.take(parseMoney(x.proceeds, cur), 'Exit, proceeds', 0)
   const exitCosts = trimAscii(x.exitCosts) === '' ? 0 : c.take(parseMoney(x.exitCosts, cur), 'Exit, exit costs', 0)
   const years100 = c.take(parseYears(x.years), 'Exit, years held', 0)
@@ -221,7 +271,7 @@ export function deriveDistribution(s: Pick<AppState, 'deal' | 'exit'>): Derived<
       })),
     }
   }
-  const input: WaterfallInput = { holdings, proceeds, exitCosts, years100, carry }
+  const input: WaterfallInput = { holdings, proceeds, exitCosts, years100, carry, ...(payees.length ? { payees } : {}) }
   const errors = [...c.errors, ...validateWaterfall(input).map(friendly)]
   return { input: errors.length ? null : input, errors }
 }
@@ -233,6 +283,8 @@ export function deriveHoldings(s: Pick<AppState, 'deal' | 'exit'>): Derived<Hold
     id: h.id,
     name: h.name,
     capital: c.take(parseMoney(h.capital, s.deal.currency), `Holdings row ${i + 1}, amount invested`, 1),
+    // the export must keep personal carry, an explicit 0% included (Codex M7 #2)
+    ...(trimAscii(h.carry ?? '') ? { carryBps: c.take(parsePercent(h.carry), `Holdings row ${i + 1}, carry`, 0) } : {}),
   }))
   const errors = [...c.errors, ...validateHoldings(holdings).map(friendly)]
   return { input: errors.length ? null : holdings, errors }

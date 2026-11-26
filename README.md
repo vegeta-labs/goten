@@ -6,9 +6,9 @@ Goten is the deal calculations module of Vegeta, software for SPV and syndicate 
 2. **Closing allocation:** work out what each investor invests, pays in fees and gets back, and what is wired to the company.
 3. **Exit distribution:** split exit proceeds between investors and the lead, with carry, a hurdle and catch-up, or tiered carry.
 
-Every figure is checked automatically, and the exit waterfall is explained step by step. Around these steps: chase and payment-query texts you copy and send yourself, an activity log of every decision, withdrawal before closing, and changing who pays a percentage fee before closing (recorded as a reversible adjustment). Deal data is processed and saved in your browser; the app sends none of it anywhere.
+Every figure is checked automatically, and the exit waterfall is explained step by step. Around these steps: chase and payment-query texts you copy and send yourself, an activity log of every decision, withdrawal before closing, changing who pays a percentage fee before closing (recorded as a reversible adjustment), each investor's own fee terms and carry, a pro-rata platform fee, receipts net of refunds, and an allocation hand-off file for exchanging a closing with another tool. Deal data is processed and saved in your browser; the app sends none of it anywhere.
 
-**Live:** https://vegeta-goten.vercel.app (release `v1.4.2`)
+**Live:** https://vegeta-goten.vercel.app (release `v1.5.0`)
 
 **Website:** https://vegeta-ops.vercel.app/goten/ (source: https://github.com/vegeta-labs/vegeta-site)
 

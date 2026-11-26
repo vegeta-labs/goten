@@ -1,7 +1,7 @@
 // PRD §4.2 closing allocation: inputs, result, blockers, S/EIS, confirmation, export.
 import { useId, useState, type Dispatch } from 'react'
 import { SYMBOL, formatMicroShares, formatMoney } from '../lib/money'
-import { SEIS_BEFORE_EIS_NOTE, SEIS_EIS_HINT, type AllocationResult, type FeeKind, type FeePayer } from '../lib/allocation'
+import { NO_SHARES_SEIS, SEIS_BEFORE_EIS_NOTE, SEIS_EIS_HINT, type AllocationResult, type FeeKind, type FeePayer } from '../lib/allocation'
 import type { InputError, Outcome } from '../lib/outcome'
 import { blocked } from '../lib/outcome'
 import { importInvestors } from '../lib/csv'
@@ -11,6 +11,7 @@ import { Cell, Checks, ErrorList, ImportBox, Notice, Section, Term, UpdatingNoti
 import { useListMessage } from './listMessage'
 import { download } from './download'
 import { SchemeSelect } from './Reconciliation'
+import { HandoffRequestSection, InstrumentField, InvestorTermsCells, PlatformFeeSection } from './AllocationExtras'
 import { FeePayerPanel } from './FeeChange'
 import type { deriveChangeRecheck } from '../derive'
 
@@ -18,6 +19,7 @@ const BLOCKER_TEXT: Record<AllocationResult['blockers'][number]['code'], string>
   'no-participants': 'No investor can be allocated.',
   'company-fees-exceed': 'Company-paid fees are more than the total invested.',
   'scale-back-below-minimum': 'After scale-back, these investors fall below the minimum commitment:',
+  'platform-fee-exceeds': 'The pro-rata platform fee would take all of these investors’ amount invested:',
 }
 
 const EXCLUSION_TEXT = {
@@ -71,7 +73,8 @@ export function Allocation({
 }) {
   const cur = state.deal.currency
   const a = state.allocation
-  const m = (x: number) => formatMoney(x, cur)
+  // null: not computed while the platform fee blocks (C-ALL-9b) — shown as a dash
+  const m = (x: number | null) => (x === null ? '—' : formatMoney(x, cur))
   const sym = SYMBOL[cur] // money fields say which currency they are in (owner review 2026-10-20)
   const ccyId = useId()
   // bumps whenever the investor list is replaced whole: the section and its rows start afresh (Codex M2 R3 #7, G3 M-11)
@@ -83,7 +86,10 @@ export function Allocation({
   const internal = outcome !== null && !outcome.ok && Boolean(outcome.internal)
   const isBlocked = outcome?.ok ? blocked(outcome.checks) : true
   const refundsToCheck = a.excess.filter((x) => x.needsCheck)
-  const confirmation = result && priceMicros !== null ? closingConfirmation(state.deal.name, cur, priceMicros, result, a.excess) : ''
+  const confirmation = result ? closingConfirmation(state.deal.name, cur, priceMicros, result, a.excess, a.instrument) : ''
+  const [showTerms, setShowTerms] = useState(false)
+  const termsInUse = a.investors.some((v) => v.ownFeeMode || v.ownFeeRate || v.ownFeeFixed || v.carry)
+  const termsShown = showTerms || termsInUse
   const canSend = Boolean(result) && !pending && !isBlocked && refundsToCheck.length === 0 && !stale
   // what the message says stops being true once this text cannot be sent, or is no longer the text on the page
   if (copyMsg && (!canSend || copyMsg.copied !== confirmation)) setCopyMsg(null)
@@ -140,16 +146,19 @@ export function Allocation({
         In {cur}
       </span>
       <div className="form-grid">
-        <label>
-          Share price ({sym} per share)
-          <Cell
-            className="field"
-            label="Share price"
-            describedBy={ccyId}
-            value={a.price}
-            onCommit={(v) => dispatch({ type: 'setAllocation', patch: { price: v } })}
-          />
-        </label>
+        <InstrumentField value={a.instrument} dispatch={dispatch} />
+        {a.instrument === 'equity' && (
+          <label>
+            Share price ({sym} per share)
+            <Cell
+              className="field"
+              label="Share price"
+              describedBy={ccyId}
+              value={a.price}
+              onCommit={(v) => dispatch({ type: 'setAllocation', patch: { price: v } })}
+            />
+          </label>
+        )}
         <label data-tour="cap">
           Round cap ({sym}, blank = no cap)
           <Cell
@@ -193,6 +202,8 @@ export function Allocation({
         Deal settings). Company-paid fees come out of the wire to the company; lead-paid fees are invoiced to the lead.
       </p>
 
+      <PlatformFeeSection value={a.platformFee} sym={sym} dispatch={dispatch} />
+
       <FeePayerPanel state={state} dispatch={dispatch} pending={pending} recheck={recheck} />
 
       <Section resetKey={listKey} startOpen={a.investors.length === 0} keepOpen={importMsg !== null}>
@@ -203,13 +214,16 @@ export function Allocation({
           title="Import investors (replaces the list)"
           help={
             <>
-              Columns: <code>investor_id</code> (optional), <code>name</code>, <code>received</code>, <code>scheme</code>. Use this when you are not coming from
-              reconciliation.
+              Columns: <code>investor_id</code> (optional), <code>name</code>, <code>received</code>, <code>scheme</code>; optional <code>own_fee_mode</code>,{' '}
+              <code>own_fee_rate</code>, <code>own_fee_fixed</code>, <code>carry</code>. Use this when you are not coming from reconciliation.
             </>
           }
           onImport={doImport}
         />
         {importMsg && (importMsg.ok ? <Notice kind="ok">{importMsg.text}</Notice> : <ErrorList errors={importMsg.errors} title="Nothing was imported" />)}
+        <label className="check">
+          <input type="checkbox" checked={termsShown} disabled={termsInUse} onChange={(e) => setShowTerms(e.target.checked)} /> Show own terms
+        </label>
         <div className="table-wrap">
           <table className="grid" aria-label="Allocation investors">
             <thead>
@@ -218,6 +232,16 @@ export function Allocation({
                 <th>Name</th>
                 <th>Cash received ({sym})</th>
                 <th>Scheme</th>
+                {termsShown && (
+                  <>
+                    <th>
+                      <Term term="own terms">Own fee mode</Term>
+                    </th>
+                    <th>Own fee rate (%)</th>
+                    <th>Own fixed fee ({sym})</th>
+                    <th>Carry (%)</th>
+                  </>
+                )}
                 <th />
               </tr>
             </thead>
@@ -247,6 +271,7 @@ export function Allocation({
                       onChange={(value) => dispatch({ type: 'editInvestor', index: i, rowId: v.id, field: 'scheme', value })}
                     />
                   </td>
+                  {termsShown && <InvestorTermsCells v={v} i={i} dispatch={dispatch} state={state} />}
                   <td>
                     <button
                       type="button"
@@ -273,7 +298,7 @@ export function Allocation({
           <ul data-testid="excess">
             {a.excess.map((x) => (
               <li key={x.id}>
-                {x.name}: {m(x.amount)} ({x.reason === 'Withdrawn' ? 'withdrawn before closing' : 'over-payment'})
+                {x.name}: {m(x.amount)} ({x.reason === 'Withdrawn' ? 'withdrawn before closing' : x.reason === 'Refund only' ? 'refund only' : 'over-payment'})
                 {x.needsCheck && (
                   <>
                     {' '}
@@ -291,6 +316,8 @@ export function Allocation({
           </ul>
         </>
       )}
+
+      <HandoffRequestSection state={state} dispatch={dispatch} result={outcome?.ok && !heldBack ? outcome.result : null} pending={pending} />
 
       <h3>Result</h3>
       <ErrorList errors={derivedErrors} title="Input errors — no results until these are fixed" />
@@ -384,7 +411,7 @@ function FeeEditor({ f, i, dispatch, ccyId }: { f: FeeRow; i: number; dispatch: 
   )
 }
 
-function AllocResult({ r, m }: { r: AllocationResult; m: (x: number) => string }) {
+function AllocResult({ r, m }: { r: AllocationResult; m: (x: number | null) => string }) {
   const investorFees = r.feeTotals.filter((f) => f.payer === 'investors')
   const anyClaimable = r.rows.some((x) => x.participating && x.scheme !== 'none')
   return (
@@ -428,7 +455,13 @@ function AllocResult({ r, m }: { r: AllocationResult; m: (x: number) => string }
           <dt>Wire to company</dt>
           <dd>{m(r.totals.wire)}</dd>
         </div>
-        {r.totals.leadInvoice > 0 && (
+        {r.totals.platformFee && (
+          <div>
+            <dt>Pro-rata platform fee ({r.totals.platformFee.payer === 'lead' ? 'the lead' : r.totals.platformFee.payer})</dt>
+            <dd>{m(r.totals.platformFee.amount)}</dd>
+          </div>
+        )}
+        {r.totals.leadInvoice !== null && r.totals.leadInvoice > 0 && (
           <div>
             <dt>Invoice to lead</dt>
             <dd>{m(r.totals.leadInvoice)}</dd>
@@ -474,7 +507,7 @@ function AllocResult({ r, m }: { r: AllocationResult; m: (x: number) => string }
                 <td>{x.scheme}</td>
                 <td className="num">{m(x.received)}</td>
                 <td className="num">{m(x.invested)}</td>
-                <td className="num">{x.participating ? formatMicroShares(x.microShares) : '—'}</td>
+                <td className="num">{x.participating && x.microShares !== null ? formatMicroShares(x.microShares) : '—'}</td>
                 {investorFees.map((f) => (
                   <td key={f.id} className="num">
                     {m(x.fees[f.id] ?? 0)}
@@ -483,10 +516,12 @@ function AllocResult({ r, m }: { r: AllocationResult; m: (x: number) => string }
                 <td className="num">{m(x.refund)}</td>
                 {anyClaimable && (
                   <td className="num" data-tour={`seis-${x.id}`}>
-                    {x.participating && x.scheme !== 'none' ? (
+                    {x.participating && x.scheme !== 'none' && x.claimableShares === null ? (
+                      NO_SHARES_SEIS
+                    ) : x.participating && x.scheme !== 'none' ? (
                       <>
-                        {x.claimableShares.toLocaleString('en-GB')} shares / {m(x.claimableAmount)}
-                        {x.nonClaimable > 0 && <span className="warn-text"> · not claimable {m(x.nonClaimable)}</span>}
+                        {x.claimableShares!.toLocaleString('en-GB')} shares / {m(x.claimableAmount)}
+                        {x.nonClaimable !== null && x.nonClaimable > 0 && <span className="warn-text"> · not claimable {m(x.nonClaimable)}</span>}
                       </>
                     ) : (
                       ''
@@ -503,7 +538,7 @@ function AllocResult({ r, m }: { r: AllocationResult; m: (x: number) => string }
         Invested = cash received less fees and refund. Shares = invested ÷ share price, shown to 6 decimal places. Investors below the minimum or with nothing
         left after fees are refunded in full and pay no fees.
       </p>
-      {r.rows.some((x) => x.participating && x.scheme !== 'none' && x.nonClaimable > 0) && <p className="hint">S/EIS: {SEIS_EIS_HINT}</p>}
+      {r.rows.some((x) => x.participating && x.scheme !== 'none' && x.nonClaimable !== null && x.nonClaimable > 0) && <p className="hint">S/EIS: {SEIS_EIS_HINT}</p>}
 
       <h4>
         By <Term term="S/EIS">tax scheme</Term>
@@ -524,7 +559,7 @@ function AllocResult({ r, m }: { r: AllocationResult; m: (x: number) => string }
                 <td>{k}</td>
                 <td className="num">{r.byScheme[k].investors}</td>
                 <td className="num">{m(r.byScheme[k].invested)}</td>
-                <td className="num">{formatMicroShares(r.byScheme[k].microShares)}</td>
+                <td className="num">{r.byScheme[k].microShares === null ? '—' : formatMicroShares(r.byScheme[k].microShares!)}</td>
               </tr>
             ))}
           </tbody>

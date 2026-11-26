@@ -1,9 +1,9 @@
 // CSV import / export (PRD §5.0 I-07..I-09, §5.5).
 import Papa from 'papaparse'
-import { parseDate, parseMoney, parsePrice, plainMoney, trimAscii, type Currency } from './money'
+import { parseDate, parseMoney, parsePercent, parsePrice, plainMoney, trimAscii, type Currency } from './money'
 import type { InputError } from './outcome'
 import type { BankLine, Commitment } from './reconcile'
-import type { AllocationInvestor, TaxScheme } from './allocation'
+import type { AllocationInvestor, OwnFee, OwnTerms, TaxScheme } from './allocation'
 import type { Holding } from './waterfall'
 
 import { Errors, LIMITS, MAX_BANK_LINES, MAX_HOLDINGS, MAX_INVESTORS } from './validate'
@@ -19,6 +19,13 @@ const SCHEMAS: Record<'commitments' | 'bank' | 'investors' | 'holdings', FieldSp
     { key: 'reference', required: true, aliases: ['payment reference', 'ref'] },
     { key: 'cash_due', required: true, aliases: ['cash due', 'amount due', 'expected', 'expected amount'] },
     { key: 'scheme', required: false, aliases: ['tax scheme', 'seis/eis'] },
+    // v0.9 (§5.5): own terms; `own_` prefix so they never meet the allocation export's `fee_<label>` columns
+    { key: 'own_fee_mode', required: false, aliases: ['own fee mode'] },
+    { key: 'own_fee_rate', required: false, aliases: ['own fee rate'] },
+    { key: 'own_fee_fixed', required: false, aliases: ['own fixed fee'] },
+    { key: 'carry', required: false, aliases: ['carry %'] },
+    { key: 'refunded', required: false, aliases: ['refunded amount'] },
+    { key: 'refund_only', required: false, aliases: ['refund only'] },
   ],
   bank: [
     { key: 'transaction_id', required: false, aliases: ['id', 'transaction id', 'txn id'] },
@@ -32,13 +39,53 @@ const SCHEMAS: Record<'commitments' | 'bank' | 'investors' | 'holdings', FieldSp
     { key: 'name', required: true, aliases: ['investor name', 'investor', 'full name'] },
     { key: 'received', required: true, aliases: ['cash received', 'amount received'] },
     { key: 'scheme', required: false, aliases: ['tax scheme', 'seis/eis'] },
+    // v0.9 (§5.5): own terms; `own_` prefix so they never meet the allocation export's `fee_<label>` columns
+    { key: 'own_fee_mode', required: false, aliases: ['own fee mode'] },
+    { key: 'own_fee_rate', required: false, aliases: ['own fee rate'] },
+    { key: 'own_fee_fixed', required: false, aliases: ['own fixed fee'] },
+    { key: 'carry', required: false, aliases: ['carry %'] },
   ],
   holdings: [
     { key: 'investor_id', required: false, aliases: ['id', 'investor id'] },
     { key: 'name', required: true, aliases: ['investor name', 'investor', 'full name'] },
     { key: 'capital', required: true, aliases: ['invested', 'amount invested'] },
     { key: 'share_price', required: false, aliases: ['price per share', 'price'] },
+    { key: 'carry', required: false, aliases: ['carry %'] },
   ],
+}
+
+/** §5.5 v0.9: own fee mode, rate or fixed fee, and carry from one row; problems go to `add`. */
+function parseTerms(r: Record<string, string | undefined>, at: string, currency: Currency, add: (where: string, message: string) => void): { ownTerms?: OwnTerms; carryBps?: number } {
+  const out: { ownTerms?: OwnTerms; carryBps?: number } = {}
+  const rawMode = trimAscii(r.own_fee_mode ?? '').toLowerCase()
+  const rawRate = trimAscii(r.own_fee_rate ?? '')
+  const rawFixed = trimAscii(r.own_fee_fixed ?? '')
+  const mode = rawMode === 'on_top' || rawMode === 'on top' || rawMode === 'added' ? 'onTop' : rawMode === 'deducted' || rawMode === 'from wire' ? 'deducted' : null
+  if (rawMode && !mode) add(`${at}, own_fee_mode`, 'must be on_top or deducted')
+  if (rawRate && rawFixed) add(`${at}, own_fee_rate`, 'fill in a rate or a fixed fee, not both')
+  else if ((rawRate || rawFixed) && !rawMode) add(`${at}, own_fee_mode`, 'required when an own fee is given')
+  if (mode) {
+    let fee: OwnFee = null
+    if (rawRate) {
+      const p = parsePercent(rawRate)
+      if (!p.ok) add(`${at}, own_fee_rate`, p.reason)
+      else if (mode === 'deducted' && p.value >= 10_000) add(`${at}, own_fee_rate`, 'a fee deducted from the wire must be less than 100%')
+      else fee = { kind: 'percent', bps: p.value }
+    } else if (rawFixed) {
+      const m = parseMoney(rawFixed, currency)
+      if (!m.ok) add(`${at}, own_fee_fixed`, m.reason)
+      else if (m.value <= 0) add(`${at}, own_fee_fixed`, 'must be greater than 0')
+      else fee = { kind: 'fixed', amount: m.value }
+    }
+    out.ownTerms = { mode, fee }
+  }
+  const rawCarry = trimAscii(r.carry ?? '')
+  if (rawCarry) {
+    const c = parsePercent(rawCarry)
+    if (!c.ok) add(`${at}, carry`, c.reason)
+    else out.carryBps = c.value
+  }
+  return out
 }
 
 /** Header names refused as stand-ins for a required column, because they could include or exclude fees.
@@ -226,7 +273,21 @@ export function importCommitments(text: string, currency: Currency): ImportResul
     if (!cash.ok) e.add(`${at}, cash_due`, cash.reason)
     const scheme = parseScheme(r.scheme ?? '')
     if (!scheme) e.add(`${at}, scheme`, 'must be none, SEIS or EIS')
-    rows.push({ id: r.investor_id ?? '', name: r.name ?? '', email: r.email ?? '', reference: r.reference ?? '', cashDue: cash.ok ? cash.value : 1, scheme: scheme ?? 'none' })
+    const row: Commitment = { id: r.investor_id ?? '', name: r.name ?? '', email: r.email ?? '', reference: r.reference ?? '', cashDue: cash.ok ? cash.value : 1, scheme: scheme ?? 'none' }
+    // v0.9 columns: keys only when filled, so v0.8 files give exactly the v0.8 rows
+    Object.assign(row, parseTerms(r, at, currency, (w, m) => e.add(w, m)))
+    const rawRefunded = trimAscii(r.refunded ?? '')
+    if (rawRefunded) {
+      const m = parseMoney(rawRefunded, currency)
+      if (!m.ok) e.add(`${at}, refunded`, m.reason)
+      else if (m.value < 0) e.add(`${at}, refunded`, 'must be 0 or more')
+      else row.refunded = m.value
+    }
+    const flag = trimAscii(r.refund_only ?? '').toLowerCase()
+    if (flag === 'withdrawn') row.refundOnly = 'withdrawn'
+    else if (flag === 'closed' || flag === 'yes') row.refundOnly = 'closed' // `yes`: Bulma 0.1.0 exports (C-REC-9)
+    else if (flag) e.add(`${at}, refund_only`, 'must be withdrawn, closed or empty')
+    rows.push(row)
   })
   // Same field-table rules as the engine: references, uniqueness, text limits, email (review M1 #7).
   // blank ids are allowed here and filled in below (self-test #3)
@@ -307,7 +368,7 @@ export function importInvestors(text: string, currency: Currency): ImportResult<
     }
     if (id.length > LIMITS.investorId) errors.push({ where: `${at}, investor_id`, message: `at most ${LIMITS.investorId} characters` })
     if ((r.name ?? '').length > LIMITS.name) errors.push({ where: `${at}, name`, message: `at most ${LIMITS.name} characters` })
-    rows.push({ id, name: r.name ?? '', received: rec.ok ? rec.value : 0, scheme: scheme ?? 'none' })
+    rows.push({ id, name: r.name ?? '', received: rec.ok ? rec.value : 0, scheme: scheme ?? 'none', ...parseTerms(r, at, currency, (where, message) => errors.push({ where, message })) })
   })
   if (errors.length) return { ok: false, errors }
   fillIds(rows, 'inv', ids)
@@ -345,7 +406,10 @@ export function importHoldings(
     }
     if (id.length > LIMITS.investorId) errors.push({ where: `${at}, investor_id`, message: `at most ${LIMITS.investorId} characters` })
     if ((r.name ?? '').length > LIMITS.name) errors.push({ where: `${at}, name`, message: `at most ${LIMITS.name} characters` })
-    rows.push({ id, name: r.name ?? '', capital: cap.ok ? cap.value : 0 })
+    const rawCarry = trimAscii(r.carry ?? '')
+    const carry = rawCarry ? parsePercent(rawCarry) : null
+    if (carry && !carry.ok) errors.push({ where: `${at}, carry`, message: carry.reason })
+    rows.push({ id, name: r.name ?? '', capital: cap.ok ? cap.value : 0, ...(carry?.ok ? { carryBps: carry.value } : {}) })
   })
   if (errors.length) return { ok: false, errors }
   fillIds(rows, 'inv', ids)

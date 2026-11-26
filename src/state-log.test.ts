@@ -1,7 +1,7 @@
 // PRD v0.8 C-X-1, R-X-08: what the reducer writes to the activity log, and how it is saved (Test Plan §2.5, 〔M5〕).
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { bankRow, commitmentRow, initialState, makeReducer, parseSaved, saveState, STORAGE_KEY, trimAction, type Action, type AppState } from './state'
+import { bankRow, commitmentRow, initialState, makeReducer, NO_TERMS, parseSaved, saveState, STORAGE_KEY, trimAction, type Action, type AppState } from './state'
 import { deriveReconcile } from './derive'
 import { decide, handoffToAllocation, reconcile } from './lib/reconcile'
 import { importBank } from './lib/csv'
@@ -222,6 +222,9 @@ describe('saving with the log (R-X-08.5)', () => {
       reference: `REF-${i}`,
       cashDue: '1000.00',
       scheme: 'none',
+      ...NO_TERMS, // schema 3 (v0.9) rows
+      refunded: '',
+      refundOnly: '',
     }))
     const bank = Array.from({ length: 2_000 }, (_, i) => ({
       id: `l${i}`,
@@ -278,7 +281,7 @@ describe('reading saved data (Tech Design §9.1)', () => {
     delete old.deal.initials
     delete old.allocation.editedSinceHandoff
     const s = parseSaved(JSON.stringify(old))!
-    expect(s.schema).toBe(2)
+    expect(s.schema).toBe(3) // v0.9: schema 3
     expect(s.commitments).toEqual(now.commitments)
     expect(s.bank).toEqual(now.bank)
     expect(s.decisions).toEqual(now.decisions)

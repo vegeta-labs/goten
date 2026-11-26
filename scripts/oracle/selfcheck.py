@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Self-check the oracle against the hand calculations in docs/04_TEST_PLAN.md
 (§2.3 allocation, §2.4 waterfall, §3 sample deal, plus a few §2.2 reconcile rows;
-v0.8 §2.5: C-ALL-10 fee payer change and C-REC-7 withdrawal).
+v0.8 §2.5: C-ALL-10 fee payer change and C-REC-7 withdrawal; v0.9 §2.6: decision J, TC-J-*).
 Usage: python3 scripts/oracle/selfcheck.py"""
 import os
 import sys
@@ -527,6 +527,428 @@ eq("IO-47 David chase", [x for x in r["chase"] if x["id"] == "david"], [{"id": "
 eq("IO-47 David effective", r["commitments"]["david"]["cashDue"], 242500)
 eq("v0.8 compat: no new keys without new fields", sorted(rec(reviewed).keys()), ["aged", "commitments", "lines", "totals"])
 eq("v0.8 withdrawn unknown id invalid", recw(["nobody"]), {"ok": False})
+
+# ================================================================ v0.9 §2.6: decision J (TC-J-*)
+OLD_PASSED = PASSED
+OLD_FAILED = len(FAILED)
+from oracle import projection_hash  # noqa: E402
+
+
+def j_alloc(investors, fees=(), basis="deducted", minimum=0, cap=None, price=GBP1, pf=None, instrument=None):
+    """investors: (id, received, ownTerms or None[, scheme])."""
+    case = {"kind": "allocation", "feeBasis": basis, "minimum": minimum, "cap": cap, "priceMicros": price,
+            "fees": list(fees), "investors": []}
+    for t in investors:
+        inv = {"id": t[0], "received": t[1], "scheme": t[3] if len(t) > 3 else "none"}
+        if t[2] is not None:
+            inv["ownTerms"] = t[2]
+        case["investors"].append(inv)
+    if pf is not None:
+        case["platformFee"] = pf
+    if instrument is not None:
+        case["instrument"] = instrument
+    return run(case)
+
+
+def own(mode, kind=None, value=None):
+    return {"mode": mode, "fee": None if kind is None else {"kind": kind, "value": value}}
+
+
+def pfee(rate, minimum=0, maximum=None, thr=None, add=None, payer="investors"):
+    return {"rate": rate, "minimum": minimum, "maximum": maximum, "addOnThreshold": thr, "addOnRate": add,
+            "payer": payer}
+
+
+def iv(r, i, *keys):
+    return tuple(r["investors"][i][k] for k in keys)
+
+
+# TC-J-02 C-ALL-0 replaces the deal's investor-paid items
+r = j_alloc([("X", 1040000, own("onTop", "percent", 400)), ("Y", 1000000, None)], [PF3])
+eq("J-02 X", iv(r, "X", "target", "ownFee", "fees", "refund"), (1000000, 40000, {}, 0))
+eq("J-02 Y", iv(r, "Y", "target", "fees", "refund"), (970000, {"pf": 30000}, 0))
+# TC-J-03 own terms without a cash fee
+r = j_alloc([("X", 500000, own("deducted"))], [PF3])
+eq("J-03", iv(r, "X", "target", "ownFee", "refund"), (500000, 0, 0))
+# TC-J-04 fixed own fee above receipt
+r = j_alloc([("X", 20000, own("deducted", "fixed", 25000))])
+eq("J-04", iv(r, "X", "participating", "exclusion", "refund"), (False, "fees-exceed-receipt", 20000))
+# format v1 §3: M <= 0 under C-ALL-1 (R > F) is fees-exceed-receipt
+r = j_alloc([("X", 1, own("deducted", "percent", 9999))])
+eq("FMT §3 M <= 0", iv(r, "X", "participating", "exclusion", "refund"), (False, "fees-exceed-receipt", 1))
+# TC-J-05 minimum on M for on top fixed fee
+r = j_alloc([("X", 1025000, own("onTop", "fixed", 25000))], minimum=1000000)
+eq("J-05 at minimum", iv(r, "X", "participating", "target"), (True, 1000000))
+r = j_alloc([("X", 1024999, own("onTop", "fixed", 25000))], minimum=1000000)
+eq("J-05 1p below", iv(r, "X", "participating", "exclusion"), (False, "below-minimum"))
+# TC-J-06 C-ALL-3 commitment basis per person (R30)
+j06 = [("X", 2000000, own("deducted", "fixed", 25000)), ("Y", 10000000, None)]
+r = j_alloc(j06, cap=10000000, minimum=1660000)
+eq("J-06 T", (r["investors"]["X"]["target"], r["investors"]["Y"]["target"]), (1649269, 8350731))
+eq("J-06 16,600 closes", r["blockers"], [])
+r = j_alloc(j06, cap=10000000, minimum=1680000)
+eq("J-06 16,800 blocks X", (r["blockers"], r["blockerIds"]),
+   (["scale-back-below-minimum"], {"scale-back-below-minimum": ["X"]}))
+# TC-J-07 deducted 100% invalid (names X); on top 100% legal, M = floor(R / 2)
+eq("J-07 deducted 100%", j_alloc([("X", 100000, own("deducted", "percent", 10000))]),
+   {"ok": False, "error": "own-rate-100", "investor": "X"})
+r = j_alloc([("X", 100001, own("onTop", "percent", 10000))])
+eq("J-07 on top 100%", iv(r, "X", "participating", "target"), (True, 50000))
+
+# TC-J-08 C-ALL-9b formula (lead pays so nothing blocks; B = one investor's T)
+for B, want in ((10000000, 400000), (50000000, 1250000), (100000000, 2000000), (600000000, 2100000)):
+    r = j_alloc([("A", B, None)], pf=pfee(250, 400000, 2000000, 500000000, 10, payer="lead"))
+    eq("J-08 B=%d" % B, r["platformFee"]["amount"], want)
+r = j_alloc([("A", 100000000, None)], pf=pfee(250, 400000, None, 500000000, 10, payer="lead"))
+eq("J-08 no maximum", r["platformFee"]["amount"], 2500000)
+r = j_alloc([("A", 100, None)], pf=pfee(50, 0, None, 0, 50, payer="lead"))
+eq("J-08 each part rounded", r["platformFee"]["amount"], 2)
+# TC-J-09 investor-paid platform fee
+pf09 = pfee(250, 400000)
+r = j_alloc([("A", 10400000, own("onTop", "percent", 400)), ("B", 10000000, own("deducted", "percent", 400))], pf=pf09)
+eq("J-09 fee", (r["platformFee"]["base"], r["platformFee"]["amount"]), (19600000, 490000))
+eq("J-09 A", iv(r, "A", "platformFeeShare", "invested"), (250000, 9750000))
+eq("J-09 B", iv(r, "B", "platformFeeShare", "invested"), (240000, 9360000))
+eq("J-09 identity", (r["received"], r["totalInvested"], r["investorFees"], r["refunds"]),
+   (20400000, 19110000, 800000, 0))
+# TC-J-10 remainder ties to the earlier person
+r = j_alloc([("A", 10000, None), ("B", 10000, None)], pf=pfee(0, 3, 3))
+eq("J-10", (r["investors"]["A"]["platformFeeShare"], r["investors"]["B"]["platformFeeShare"]), (2, 1))
+r = j_alloc([("B", 10000, None), ("A", 10000, None)], pf=pfee(0, 3, 3))
+eq("J-10 reversed", (r["investors"]["B"]["platformFeeShare"], r["investors"]["A"]["platformFeeShare"]), (2, 1))
+# TC-J-11 B = 0: no platform fee
+r = j_alloc([("A", 50000, None)], minimum=100000, pf=pfee(0, 400000))
+eq("J-11", (r["platformFee"], r["investors"]["A"]["refund"], r["blockers"]), (None, 50000, ["no-participants"]))
+# TC-J-12 / TC-J-55 / TC-J-58 blocked platform fee
+r = j_alloc([("A", 50000, None)], pf=pfee(0, 50000))
+eq("J-12 S = T", (r["blockers"], r["blockerIds"], iv(r, "A", "target", "platformFeeShare")),
+   (["platform-fee-exceeds"], {"platform-fee-exceeds": ["A"]}, (50000, 50000)))
+r = j_alloc([("A", 50000, None)], pf=pfee(0, 60000))
+eq("J-12 fee > B", (r["blockers"], r["blockerIds"], r["platformFee"]["amount"], r["platformFee"]["base"]),
+   (["platform-fee-exceeds"], {"platform-fee-exceeds": ["A"]}, 60000, 50000))
+eq("J-55 diagnostics", iv(r, "A", "invested", "microShares", "claimableShares", "claimableAmount"), (-10000, 0, 0, 0))
+r = j_alloc([("A", 50000, None)], [{"id": "c1", "kind": "percent", "value": 100, "payer": "company"}], pf=pfee(0, 60000))
+eq("J-58 9a not computed", (r["blockers"], r["companyFees"], r["wire"], r["feeTotals"]["c1"]),
+   (["platform-fee-exceeds"], None, None, None))
+# TC-J-13 payer company / lead
+r = j_alloc([("A", 10000000, None)], pf=pfee(250, payer="company"))
+eq("J-13 company", (r["investors"]["A"]["invested"], r["wire"]), (10000000, 9750000))
+r = j_alloc([("A", 10000000, None)], pf=pfee(250, payer="lead"))
+eq("J-13 lead", (r["investors"]["A"]["invested"], r["leadInvoice"], r["wire"]), (10000000, 250000, 10000000))
+# TC-J-14 C-ALL-9a base after the investor-paid platform fee
+r = j_alloc([("A", 10000000, None)], [{"id": "c1", "kind": "percent", "value": 100, "payer": "company"}], pf=pfee(250))
+eq("J-14", (r["platformFee"]["amount"], r["investors"]["A"]["invested"], r["feeTotals"]["c1"], r["wire"]),
+   (250000, 9750000, 97500, 9652500))
+# TC-J-15 instruments
+r = j_alloc([("A", 1000000, None, "SEIS")], price=None, instrument="convertible")
+eq("J-15 convertible", iv(r, "A", "invested", "microShares", "claimableShares", "claimableAmount"),
+   (1000000, None, None, None))
+eq("J-15 price must be empty", j_alloc([("A", 1000000, None)], price=GBP1, instrument="convertible"),
+   {"ok": False, "error": "share-price-not-empty"})
+r = run({"kind": "feePayerChange", "feeBasis": "deducted", "minimum": 0, "cap": None, "priceMicros": None,
+         "instrument": "fund_units", "fees": [F3I], "feeId": "f", "newPayer": "company",
+         "investors": [{"id": "A", "cashDue": 1000000}]})
+eq("J-15 fund_units preview", (r.get("ok"), r.get("canApply"), r["investors"]["A"]["newCashDue"]), (True, True, 970000))
+
+
+# TC-J-16 / TC-J-17 / TC-J-57 fee payer change
+def j_fpc(investors, fees, fee_id, new_payer, pf=None, **kw):
+    case = {"kind": "feePayerChange", "feeBasis": kw.get("basis", "deducted"), "minimum": kw.get("minimum", 0),
+            "cap": kw.get("cap"), "priceMicros": GBP1, "fees": list(fees), "feeId": fee_id, "newPayer": new_payer,
+            "investors": investors}
+    if pf is not None:
+        case["platformFee"] = pf
+    return run(case)
+
+
+r = j_fpc([{"id": "A", "cashDue": 1000000, "ownTerms": own("onTop", "percent", 400)}, {"id": "B", "cashDue": 1000000}],
+          [F3I], "f", "company")
+eq("J-16 own fee terms disable", r, {"ok": True, "disabled": "own-fee-terms"})
+r = j_fpc([{"id": "A", "cashDue": 1000000, "carry": 2000}], [F3I], "f", "company")
+eq("J-16 carry only available", (r["ok"], r["canApply"]), (True, True))
+r = j_fpc([{"id": "A", "cashDue": 20000000}], [F3I], "f", "company", pf=pfee(250, 400000))
+a = r["investors"]["A"]
+eq("J-17", (a["target"], a["newCashDue"], a["difference"], a.get("targetAfter"), r["canApply"]),
+   (19400000, 19400000, -600000, 19400000, True))
+r = j_fpc([{"id": "A", "cashDue": 50000}], [F3I], "f", "company", pf=pfee(0, 60000))
+eq("J-57 blocked", (r["canApply"], [b["code"] for b in r["blockers"]]), (False, ["before-platform-fee-exceeds"]))
+eq("J-57 T = 485.00", j_alloc([("A", 50000, None)], [F3I], pf=pfee(0, 60000))["investors"]["A"]["target"], 48500)
+# TC-J-60 base after C-ALL-7
+r = j_alloc([("A", 3, None)], [dict(F3I, id="f1", value=2500), dict(F3I, id="f2", value=2500)], basis="onTop",
+            pf=pfee(2500))
+eq("J-60", (iv(r, "A", "target", "fees", "refund"), r["platformFee"]["amount"], r["blockers"]),
+   ((1, {"f1": 0, "f2": 0}, 2), 0, []))
+# TC-J-61 base after scale-back
+r = j_alloc([("A", 10000000, None), ("B", 10000000, None)], cap=10000000, pf=pfee(250))
+eq("J-61", ([iv(r, i, "target", "platformFeeShare", "invested", "refund") for i in "AB"],
+            r["platformFee"]["base"], r["platformFee"]["amount"]),
+   ([(5000000, 125000, 4875000, 5000000)] * 2, 10000000, 250000))
+
+
+# ---------------------------------------------------------------- reconcile (C-REC-4, C-REC-9)
+def j_rec(comms, lines_=(), withdrawn=None):
+    case = {"kind": "reconcile", "asOf": "2026-10-16", "thresholdDays": 10, "commitments": comms,
+            "lines": list(lines_), "decisions": {}}
+    if withdrawn is not None:
+        case["withdrawn"] = withdrawn
+    return run(case)
+
+
+def cm(cid, ref, due, name="Amelia Hart", **kw):
+    d = {"id": cid, "name": name, "reference": ref, "cashDue": due}
+    d.update(kw)
+    return d
+
+
+def ln_(lid, amount, ref, payer="A HART"):
+    return {"id": lid, "txnId": lid, "date": "2026-10-10", "amount": amount, "payer": payer, "reference": ref}
+
+
+r = j_rec([cm("A", "NW-001", 1000000, refunded=100000)], [ln_("t1", 1100000, "NW-001")])
+eq("J-20 net", (r["commitments"]["A"]["received"], r["commitments"]["A"]["status"], r["refunds"]), (1000000, "paid", []))
+r = j_rec([cm("A", "NW-001", 1000000)], [ln_("t1", 1100000, "NW-001")], withdrawn=[])
+eq("J-20 no refunded = v0.8", (r["commitments"]["A"]["status"], r["refunds"]),
+   ("overpaid", [{"id": "A", "amount": 100000, "reason": "overpayment"}]))
+r = j_rec([cm("A", "NW-001", 100000, refunded=50000), cm("B", "NW-002", 100000, name="Bo Li", refunded=50000,
+                                                          refundOnly="closed")])
+eq("J-21", ([r["commitments"][i]["status"] for i in "AB"], r["chase"], r["handoffBlockedBy"]),
+   (["check-refunds", "check-refunds"], [], ["A", "B"]))
+r = j_rec([cm("A", "NW-001", 100000, refundOnly="closed"), cm("C", "NW-003", 50000, name="Cy Ng")],
+          [ln_("t1", 100000, "NW-001")])
+eq("J-22", (r["commitments"]["A"]["status"], [x["id"] for x in r["chase"]], r["receivable"], r["refunds"],
+            "A" in r["handoff"], r["withdrawnSummary"]["count"]),
+   ("closed-refund-only", ["C"], 50000, [{"id": "A", "amount": 100000, "reason": "refund-only"}], False, 1))
+r = j_rec([cm("A", "NW-001", 100000, refundOnly="withdrawn")], [ln_("t1", 40000, "NW-001")], withdrawn=["A"])
+eq("J-23 flag", (r["commitments"]["A"]["status"], r["refunds"]),
+   ("withdrawn-imported", [{"id": "A", "amount": 40000, "reason": "withdrawn"}]))
+r = j_rec([cm("A", "NW-001", 100000, refundOnly=None)], [ln_("t1", 40000, "NW-001")], withdrawn=["A"])
+eq("J-23 cleared -> manual", (r["commitments"]["A"]["status"], r["refunds"]),
+   ("withdrawn", [{"id": "A", "amount": 40000, "reason": "withdrawn"}]))
+c25 = [ln_("t1", 900000, "NW-001"), ln_("t2", 200000, "NW-002", payer="ZED QUINN")]
+r = j_rec([cm("A", "NW-001", 1000000, refunded=100000)], c25)
+eq("J-25 net outstanding", (r["lines"]["t2"]["status"], r["lines"]["t2"]["candidates"]),
+   ("suggested", [{"id": "A", "score": 0.5}]))
+r = j_rec([cm("A", "NW-001", 1000000)], c25)
+eq("J-25 no refunded", (r["lines"]["t2"]["status"], r["lines"]["t2"]["candidates"]), ("unmatched", []))
+r = j_rec([cm("A", "NW-001", 1000000, refunded=100000)], c25[:1])
+eq("J-32 chase net", (r["commitments"]["A"]["received"], r["commitments"]["A"]["refunded"], r["chase"]),
+   (800000, 100000, [{"id": "A", "outstanding": 200000}]))
+r = j_rec([cm("A", "NW-001", 100000, refundOnly="closed"), cm("B", "NW-002", 100000, name="Bo Li"),
+           cm("C", "NW-003", 100000, name="Cy Ng", refunded=0)],
+          [ln_("t1", 100000, "NW-001"), ln_("t2", 120000, "NW-002"), ln_("t3", 30000, "NW-003")], withdrawn=["C"])
+eq("J-27", (r["refundTotal"], r["checks"]["refundIdentity"]), (150000, True))
+
+
+# ---------------------------------------------------------------- waterfall (C-DIS-8, C-DIS-9)
+def j_wf(hold, G, k=2000, h=0, c=0, years100=100, tiers=None, payees=None, E=0):
+    carry = {"mode": "tiered", "tiers": tiers} if tiers else {"mode": "fixed", "k": k, "h": h, "c": c}
+    case = {"kind": "waterfall", "holdings": [dict(id=i, capital=cap, **({} if ck == "-" else {"carry": ck}))
+                                              for i, cap, ck in hold],
+            "proceeds": G, "exitCosts": E, "years100": years100, "carry": carry}
+    if payees is not None:
+        case["payees"] = payees
+    return run(case)
+
+
+h33 = [("A", 10000000, 2000), ("B", 5000000, 0), ("C", 5000000, 1000)]
+r = j_wf(h33, 30000000)
+eq("J-33 carry", [r["perInvestor"][i]["carry"] for i in "ABC"], [1000000, 0, 250000])
+eq("J-33 dist", ([r["distributions"][i] for i in "ABC"], r["carry"]), ([14000000, 7500000, 7250000], 1250000))
+r = j_wf(h33, 30000000, h=800, years100=100)
+eq("J-34", [r["perInvestor"][i]["carry"] for i in "ABC"], [840000, 0, 210000])
+r = j_wf([("A", 10000000, 1000), ("B", 10000000, 1000)], 30000000)
+eq("J-35", (r["carry"], r["distributions"], r["perInvestor"]), (1000000, {"A": 14500000, "B": 14500000}, None))
+ra = j_wf([("A", 6000000, None), ("B", 4000000, 2000)], 30000000, h=800, years100=500)
+rb = j_wf([("A", 6000000, "-"), ("B", 4000000, "-")], 30000000, h=800, years100=500)
+eq("J-36 blank = k", {k_: ra[k_] for k_ in rb}, rb)
+T37 = [{"upTo100": 300, "rate": 2000}, {"upTo100": None, "rate": 3000}]
+rb = j_wf([("A", 6000000, "-"), ("B", 4000000, "-")], 30000000, tiers=T37)
+r = j_wf([("A", 6000000, None), ("B", 4000000, None)], 30000000, tiers=T37)
+eq("J-37 all blank", ({k_: r[k_] for k_ in rb}, r["tieredNotice"]), (rb, None))
+r = j_wf([("A", 6000000, 1000), ("B", 4000000, 1000)], 30000000, tiers=T37)
+eq("J-37 all 10%", ({k_: r[k_] for k_ in rb}, r["tieredNotice"], r["carryUsed"]), (rb, 1000, None))
+eq("J-37 mixed", j_wf([("A", 6000000, None), ("B", 4000000, 1000)], 30000000, tiers=T37),
+   {"ok": False, "error": "tiered-carry-mixed"})
+eq("J-37 differ", j_wf([("A", 6000000, 1000), ("B", 4000000, 2000)], 30000000, tiers=T37),
+   {"ok": False, "error": "tiered-carry-differs"})
+eq("J-38 (a)", j_wf([("A", 10000000, 2000), ("B", 10000000, 0)], 30000000, h=800, c=1500),
+   {"ok": False, "error": "catch-up-k", "investor": "A"})
+r = j_wf([("A", 10000000, 1000), ("B", 10000000, 0)], 30000000, h=800, c=1500)
+pa = r["perInvestor"]["A"]
+eq("J-38 (b) A", (pa["hurdlePaid"], pa["catchUpTranche"], pa["catchUpToLead"], pa["carry"], pa["distribution"]),
+   (800000, 1600000, 240000, 500000, 14500000))
+eq("J-38 (b) B", (r["perInvestor"]["B"]["catchUpTranche"], r["perInvestor"]["B"]["carry"], r["distributions"]["B"]),
+   (0, 0, 15000000))
+r = j_wf([("A", 10000000, 1000), ("B", 10000000, 1000)], 30000000, h=800, c=1500)
+eq("J-38 (c) original algorithm", (r["ok"], r["perInvestor"]), (True, None))
+r = j_wf(h33, 30000000, payees=[{"name": "P1", "share": 5000}, {"name": "P2", "share": 3000}, {"name": "P3", "share": 2000}])
+eq("J-39 50/30/20", [p_["amount"] for p_ in r["payees"]], [625000, 375000, 250000])
+r = j_wf([("A", 100, None)], 105, payees=[{"name": "P1", "share": 5000}, {"name": "P2", "share": 5000}])
+eq("J-39 1p", (r["carry"], [p_["amount"] for p_ in r["payees"]]), (1, [1, 0]))
+eq("J-39 99%", j_wf(h33, 30000000, payees=[{"name": "P1", "share": 9900}]), {"ok": False, "error": "payee-sum"})
+eq("J-39 0%", j_wf(h33, 30000000, payees=[{"name": "P1", "share": 10000}, {"name": "P2", "share": 0}]),
+   {"ok": False, "error": "payee-share-zero"})
+eq("J-39 21 payees", j_wf(h33, 30000000, payees=[{"name": "P%d" % q, "share": 500} for q in range(20)]
+                          + [{"name": "P21", "share": 0}]), {"ok": False, "error": "payee-count"})
+r = j_wf([("A", 100, 0), ("B", 100, 1000), ("C", 100, 2000)], 3)
+eq("J-40 D=3", [r["perInvestor"][i]["distributable"] for i in "ABC"], [1, 1, 1])
+r = j_wf([("A", 100, 0), ("B", 100, 1000), ("C", 100, 2000)], 2)
+eq("J-40 D=2", [r["perInvestor"][i]["distributable"] for i in "ABC"], [1, 1, 0])
+r = j_wf([("A", 100, 0), ("B", 200, 1000), ("C", 300, 2000)], 2)
+eq("J-40 1:2:3", [r["perInvestor"][i]["distributable"] for i in "ABC"], [0, 1, 1])
+r = j_wf(h33, 30000000, payees=[{"name": "Payee 1", "share": 7000}, {"name": "Payee 2", "share": 3000}])
+eq("J-62 payees", (r["payees"], r["carryUsed"]), ([{"name": "Payee 1", "amount": 875000},
+                                                  {"name": "Payee 2", "amount": 375000}], {"A": 2000, "B": 0, "C": 1000}))
+r = run({"kind": "waterfall", "holdings": holdings, "proceeds": 39000000, "exitCosts": 450000, "years100": 600,
+         "carry": {"mode": "fixed", "k": 2000, "h": 800, "c": 10000}, "payees": None})
+eq("J-62 sample Lead", (r["payees"], r["carryUsed"]), ([{"name": "Lead", "amount": 5702100}], None))
+
+
+# ---------------------------------------------------------------- hand-off (C-ALL-12, format v1)
+def part(pid, order, amount, mode="on_top", fee=None, carry="0", decision="allocate", **extra):
+    if decision != "allocate":
+        return {"id": pid, "order": str(order), "status": "withdrawn", "decision": decision}
+    d = {"id": pid, "order": str(order), "status": "active", "decision": decision,
+         "terms": {"fee_mode": mode, "fee": fee, "carry_bps": carry},
+         "commitment": amount, "cash_due": amount, "allocation_amount": amount, "scheme": "none"}
+    d.update(extra)
+    return d
+
+
+def request(parts, pf=None, price="1000000", instrument="equity", currency="GBP", names=None, rehash=True, **proj):
+    pr = {"currency": currency, "instrument": instrument, "minimum": "0", "deal_fees": [], "participants": parts}
+    if price is not None:
+        pr["share_price_micros"] = price
+    if pf is not None:
+        pr["platform_fee"] = pf
+    pr.update(proj)
+    bk = [{"id": p_["id"], "name": (names or {}).get(p_["id"], "Name " + p_["id"])} for p_ in parts]
+    return {"format": "goten.allocation-request/1", "handoff_id": "ho_test1", "deal_id": "deal_1",
+            "engine": "goten-rules/0.9", "projection_hash": projection_hash(pr), "projection": pr,
+            "bookkeeping": {"participants": bk}}
+
+
+def ho(req, **kw):
+    return run(dict({"kind": "handoff", "request": req, "dealCurrency": "GBP"}, **kw))
+
+
+RATE4 = {"kind": "rate", "rate_bps": "400"}
+# format §1/§2 example: on top 4%, £10,000, 2.5% investors, price £1.25
+r = ho(request([part("p1", 1, "1040000", fee=RATE4, carry="2000")], pf={"rate_bps": "250", "minimum": "0",
+                                                                         "payer": "investors"}, price="1250000"))
+eq("FMT §1 example", {k_: r["result"]["participants"][0][k_] for k_ in
+                      ("target", "own_fee", "platform_fee_share", "invested", "refund", "micro_shares")},
+   {"target": "1000000", "own_fee": "40000", "platform_fee_share": "25000", "invested": "975000", "refund": "0",
+    "micro_shares": "7800000000"})
+# TC-J-45 TC-J-09 as a request
+req45 = request([part("A", 1, "10400000", fee=RATE4), part("B", 2, "10000000", mode="deducted", fee=RATE4)],
+                pf={"rate_bps": "250", "minimum": "400000", "payer": "investors"})
+r = ho(req45)
+res = r["result"]
+eq("J-45 rows", [(p_["target"], p_["own_fee"], p_["platform_fee_share"], p_["invested"], p_["refund"])
+                 for p_ in res["participants"]],
+   [("10000000", "400000", "250000", "9750000", "0"), ("9600000", "400000", "240000", "9360000", "0")])
+eq("J-45 header", (res["handoff_id"], res["engine"], res["projection_hash"], res["can_close"]),
+   (req45["handoff_id"], req45["engine"], req45["projection_hash"], True))
+check("J-45 identity", all(int(p_["allocation_amount"]) == int(q["target"]) + int(q["own_fee"]) + int(q["refund"])
+                           for p_, q in zip(req45["projection"]["participants"], res["participants"])))
+# TC-J-42 engine
+q = request([part("A", 1, "100000")])
+q["engine"] = "goten-rules/0.8"
+r = ho(q)
+check("J-42 engine", r["ok"] is False and "This request needs engine goten-rules/0.8; this copy of Goten runs "
+      "goten-rules/0.9" in r["errors"], repr(r))
+# TC-J-43 hash
+q = request([part("A", 1, "100000")])
+q["projection"]["participants"][0]["allocation_amount"] = "90000"
+r = ho(q)
+check("J-43 changed", r["ok"] is False and "The file was changed after it was exported" in r["errors"], repr(r))
+q = request([part("A", 1, "100000")])
+q["bookkeeping"]["participants"][0]["name"] = "New Name"
+eq("J-43 bookkeeping name", ho(q)["ok"], True)
+
+
+# TC-J-44 every variant refused
+def refused(name, req=None, text=None):
+    r = ho(req) if text is None else run({"kind": "handoff", "requestText": text, "dealCurrency": "GBP"})
+    check("J-44 " + name, r.get("ok") is False and r.get("errors"), repr(r))
+
+
+q = request([part("A", 1, "100000"), part("B", 2, None, decision="refund")])
+q["projection"]["participants"][1]["terms"] = {"fee_mode": "on_top", "fee": None, "carry_bps": "0"}
+q["projection_hash"] = projection_hash(q["projection"])
+refused("refund with terms", q)
+q = request([part("A", 1, "100000")])
+q["bookkeeping"]["participants"] = []
+refused("allocate without name", q)
+refused("equity without price", request([part("A", 1, "100000")], price=None))
+refused("convertible with price", request([part("A", 1, "100000")], instrument="convertible"))
+refused("duplicate order", request([part("A", 1, "100000"), part("B", 1, "100000")]))
+refused("order out of sequence", request([part("B", 2, "100000"), part("A", 1, "100000")]))
+refused("unknown field vat", request([part("A", 1, "100000")], vat="2000"))
+good = request([part("A", 1, "100000")])
+import json as _json  # noqa: E402
+txt = _json.dumps(good)
+refused("duplicate key", text=txt.replace('"deal_id": "deal_1"', '"deal_id": "deal_1", "deal_id": "deal_2"'))
+refused("lone surrogate", text=txt.replace('"Name A"', '"Name \\ud800"'))
+q = request([part("A", 1, "100000")])
+del q["projection"]["minimum"]
+q["projection_hash"] = projection_hash(q["projection"])
+refused("minimum missing", q)
+refused("null cap", request([part("A", 1, "100000")], cap=None))
+refused("EUR vs GBP", request([part("A", 1, "100000")], currency="EUR"))
+# TC-J-52
+q = request([part("A", 1, "0"), part("B", 2, "100000")], names={"B": "x" * 256})
+r = ho(q)
+eq("J-52 zero amount / 256 name", (r["ok"], r["result"]["participants"][0]),
+   (True, {"id": "A", "allocated": False, "exclusion": "no-funds", "refund": "0"}))
+q = request([part("A", 1, "100000")], names={"A": "\U0001F600" * 128})
+eq("J-52 256 UTF-16 units with emoji", ho(q)["ok"], True)
+refused("J-52 257-unit name", request([part("A", 1, "100000")], names={"A": "x" * 257}))
+q = request([part("A", 1, "100000")])
+q["projection"]["participants"][0]["decision"] = "Refund"
+del q["projection"]["participants"][0]["terms"]
+q["projection_hash"] = projection_hash(q["projection"])
+refused("J-52 decision Refund", q)
+# TC-J-56 currency messages
+r = ho(request([part("A", 1, "100000")], currency="EUR"))
+check("J-56 currency", "This request is in EUR; this deal is in GBP. Change the deal currency to EUR in Deal settings, "
+      "then import again." in r["errors"], repr(r))
+r = ho(request([part("A", 1, "100000")], currency="EUR"), feePayerChangeActive=True)
+check("J-56 currency locked", "This request is in EUR; this deal is in GBP. Reverse the active fee payer change first, "
+      "then change the deal currency to EUR and import again." in r["errors"], repr(r))
+# TC-J-59 blocked result shape
+q = request([part("A", 1, "50000", fee=None)], pf={"rate_bps": "0", "minimum": "60000", "payer": "investors"})
+r = ho(q)
+eq("J-59 blocked", r["result"], {"format": "goten.allocation-result/1", "handoff_id": "ho_test1",
+                                 "engine": "goten-rules/0.9", "projection_hash": q["projection_hash"],
+                                 "can_close": False, "blockers": [{"code": "platform-fee-exceeds", "ids": ["A"]}]})
+
+# TC-J-01 compatibility: 1,000 random old-style allocations give the same old fields with the v0.9 path forced on
+rng = random.Random(20261125)
+bad01 = []
+for k in range(1000):
+    basis = rng.choice(["deducted", "onTop"])
+    fs = [{"id": "p%d" % j, "kind": "percent", "value": rng.randint(0, 1500), "payer": rng.choice(["investors", "company", "lead"])}
+          for j in range(rng.randint(0, 4))]
+    if rng.random() < 0.4:
+        fs.append({"id": "fx", "kind": "perInvestor", "value": rng.randint(1, 5000), "payer": "investors"})
+    invs = [{"id": "i%d" % j, "received": rng.randint(0, 3000000), "scheme": "none"} for j in range(rng.randint(1, 6))]
+    base = {"kind": "allocation", "feeBasis": basis, "minimum": rng.choice([0, 100000, 500000]),
+            "cap": rng.choice([None, 2000000, 5000000]), "priceMicros": rng.randint(1, 5000000), "fees": fs, "investors": invs}
+    old = run(base)
+    new = run(dict(base, instrument="equity"))
+    if old.get("ok") is False:
+        if new != old:
+            bad01.append(k)
+        continue
+    if {k_: (v if k_ != "investors" else {i: {f: x[f] for f in old["investors"][i]} for i, x in v.items()})
+            for k_, v in new.items() if k_ in old} != old:
+        bad01.append(k)
+check("J-01 random 1,000: v0.9 path equals v0.8 fields", not bad01, repr(bad01[:5]))
+
+print("v0.9 decision J: %d passed, %d failed" % (PASSED - OLD_PASSED, len(FAILED) - OLD_FAILED))
+print("existing (v0.8 and earlier): %d passed, %d failed" % (OLD_PASSED, OLD_FAILED))
 
 print("selfcheck: %d passed, %d failed" % (PASSED, len(FAILED)))
 sys.exit(1 if FAILED else 0)

@@ -5,7 +5,8 @@ import type { InputError, Outcome } from '../lib/outcome'
 import { blocked } from '../lib/outcome'
 import type { WaterfallResult } from '../lib/waterfall'
 import { importHoldings } from '../lib/csv'
-import { distributionCsv, holdingsCsv, sharesDisplay } from '../lib/exports'
+import { distributionCsv, holdingsCsv, noSharesFor, payeesCsv, sharesDisplay } from '../lib/exports'
+import { PayeesSection, PerInvestorCarry } from './ExitExtras'
 import { exitStale, holdingRow, type Action, type AppState } from '../state'
 import { Cell, Checks, ErrorList, ImportBox, Notice, Section, Term, UpdatingNotice } from './common'
 import { useListMessage } from './listMessage'
@@ -65,7 +66,9 @@ export function Distribution({
       <h2 id="dis-h">
         Exit distribution (<Term term="waterfall" />)
       </h2>
-      <p className="hint">One investment, one exit, the same terms for every investor. Each investor’s share follows the amount they invested.</p>
+      <p className="hint">
+        One investment, one exit. Each investor’s share of the proceeds follows the amount they invested; carry is the deal’s rate unless an investor has their own.
+      </p>
       {stale && (
         <Notice kind="warn">
           <span data-testid="exit-stale">
@@ -113,6 +116,7 @@ export function Distribution({
                 <th>Name</th>
                 <th>Amount invested ({sym}, excluding fees)</th>
                 <th className="num">Shares</th>
+                <th>Carry (%, blank = the deal’s)</th>
                 <th />
               </tr>
             </thead>
@@ -137,6 +141,14 @@ export function Distribution({
                   </td>
                   <td className="num">{capitals[i] === null ? '—' : sharesDisplay(capitals[i]!, x.sharePriceMicros)}</td>
                   <td>
+                    <Cell
+                      className="cell num"
+                      label={`Holding ${i + 1} carry`}
+                      value={h.carry}
+                      onCommit={(value) => dispatch({ type: 'editHolding', index: i, rowId: h.id, field: 'carry', value })}
+                    />
+                  </td>
+                  <td>
                     <button
                       type="button"
                       className="link danger"
@@ -158,7 +170,7 @@ export function Distribution({
           <button
             type="button"
             disabled={!holdingList || pending || stale}
-            onClick={() => holdingList && download(`holdings_${cur}.csv`, holdingsCsv(holdingList, x.sharePriceMicros, cur))}
+            onClick={() => holdingList && download(`holdings_${cur}.csv`, holdingsCsv(holdingList, x.sharePriceMicros, cur, noSharesFor(x.instrument)))}
           >
             Export holdings CSV
           </button>
@@ -279,12 +291,15 @@ export function Distribution({
         </>
       )}
 
+      <PayeesSection payees={x.payees} dispatch={dispatch} />
+
       <h3>Result</h3>
       <ErrorList errors={derivedErrors} title="Input errors — no results until these are fixed" />
       {pending && <UpdatingNotice />}
       {result && (
         <div className={pending ? 'figures pending' : 'figures'} aria-busy={pending}>
           <ExitResult r={result} m={m} sharePriceMicros={x.sharePriceMicros} />
+          {result.shortfall === 0 && <PerInvestorCarry r={result} m={m} />}
         </div>
       )}
       <Checks checks={outcome?.ok ? outcome.checks : []} unavailable={derivedErrors.length > 0} internal={internal} pending={pending} />
@@ -292,9 +307,16 @@ export function Distribution({
         <button
           type="button"
           disabled={!result || pending || isBlocked || stale}
-          onClick={() => result && download(`distribution_${cur}.csv`, distributionCsv(result, x.sharePriceMicros, cur))}
+          onClick={() => result && download(`distribution_${cur}.csv`, distributionCsv(result, x.sharePriceMicros, cur, noSharesFor(x.instrument)))}
         >
           Export distribution CSV
+        </button>
+        <button
+          type="button"
+          disabled={!result || isBlocked || pending || stale}
+          onClick={() => result && download(`carry_payees_${cur}.csv`, payeesCsv(result, cur))}
+        >
+          Export carry payees CSV
         </button>
       </div>
       {result && isBlocked && <p className="hint">Export is disabled until the shortfall is resolved.</p>}
@@ -412,7 +434,10 @@ function ExitResult({ r, m, sharePriceMicros }: { r: WaterfallResult; m: (v: num
         </table>
       </div>
       <p className="hint">
-        Investors share their total in proportion to the amount each invested. The multiple is distribution ÷ amount invested and does not count entry fees.
+        {r.perInvestor
+          ? 'Proceeds are shared in proportion to the amount each invested, then carry comes off at each investor’s own rate, so multiples can differ.'
+          : 'Investors share their total in proportion to the amount each invested.'}{' '}
+        The multiple is distribution ÷ amount invested and does not count entry fees.
       </p>
     </>
   )

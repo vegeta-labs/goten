@@ -11,7 +11,10 @@ export interface FeePayerInput {
   feeBasis: AllocationInput['feeBasis']
   minimum: number
   cap: number | null
-  priceMicros: number
+  priceMicros: number | null
+  /** v0.9: steps 1 and 3 run the full allocation, so they carry the instrument and the platform fee (C-ALL-10) */
+  instrument?: AllocationInput['instrument']
+  platformFee?: AllocationInput['platformFee']
   /** the current fee table (Fees) */
   fees: Fee[]
   feeId: string
@@ -30,6 +33,8 @@ export type FeePayerBlockerCode =
   | 'after-no-participants'
   | 'after-company-fees-exceed'
   | 'after-scale-back-below-minimum'
+  | 'before-platform-fee-exceeds'
+  | 'after-platform-fee-exceeds'
   | 'would-join'
   | 'would-leave'
   | 'would-fall-below-minimum'
@@ -87,6 +92,7 @@ const BEFORE_TEXT: Record<AllocationResult['blockers'][number]['code'], string> 
   'no-participants': 'No investor can be allocated',
   'company-fees-exceed': 'Company-paid fees are more than the total invested',
   'scale-back-below-minimum': 'After scale-back, falls below the minimum commitment',
+  'platform-fee-exceeds': 'The platform fee would take all of an investor’s amount invested',
 }
 export const OVER_CAP_TEXT = 'The round is over the cap — resolve the scale-back first'
 
@@ -115,15 +121,22 @@ export function lowerBound(T: number, feesAfter: Fee[], basis: AllocationInput['
  * Below R_lo the most investable is under T, so the search starts there; within ⌈k/2⌉ pennies above it the fees, each at
  * most half a penny over their exact value, leave a refund ≥ 0 at I = T (Tech Design §9.2.3). Not found = a bug.
  */
-export function minimalCashDue(T: number, feesAfter: Fee[], basis: AllocationInput['feeBasis'], priceMicros: number): { ok: true; value: number } | { ok: false; reason: 'limit' | 'internal' } {
+export function minimalCashDue(
+  T: number,
+  feesAfter: Fee[],
+  basis: AllocationInput['feeBasis'],
+  priceMicros: number | null,
+  instrument?: AllocationInput['instrument'],
+): { ok: true; value: number } | { ok: false; reason: 'limit' | 'internal' } {
   const pct = feesAfter.filter((f) => f.payer === 'investors' && f.kind === 'percent')
   const lo = lowerBound(T, feesAfter, basis)
   const hi = lo + Math.ceil(pct.length / 2)
   for (let R = lo; R <= hi; R++) {
     if (R > MAX_MONEY) return { ok: false, reason: 'limit' }
-    const o = allocate({ feeBasis: basis, minimum: 0, cap: null, priceMicros, fees: feesAfter, investors: [{ id: 'x', name: 'x', received: R, scheme: 'none' }] })
+    // the single-person search ignores the platform fee: T_i is the amount before it (C-ALL-10 v0.9)
+    const o = allocate({ feeBasis: basis, minimum: 0, cap: null, priceMicros, instrument, platformFee: null, fees: feesAfter, investors: [{ id: 'x', name: 'x', received: R, scheme: 'none' }] })
     if (!o.ok) return { ok: false, reason: 'internal' }
-    const I = o.result.rows[0].invested
+    const I = o.result.rows[0].preFeeInvested
     if (I >= T) return I === T ? { ok: true, value: R } : { ok: false, reason: 'internal' }
   }
   return { ok: false, reason: 'internal' }
@@ -136,7 +149,7 @@ export function previewFeePayerChange(x: FeePayerInput): Outcome<FeePayerPreview
   if (!x.applied && from === x.to) return input('Fee payer change', 'choose a payer other than the current one')
   if (!['investors', 'company', 'lead'].includes(x.to)) return input('Fee payer change', 'choose investors, the company or the lead')
   const feesAfter = x.fees.map((f) => (f.id === x.feeId ? { ...f, payer: x.to } : f))
-  const base = { feeBasis: x.feeBasis, minimum: x.minimum, cap: x.cap, priceMicros: x.priceMicros }
+  const base = { feeBasis: x.feeBasis, minimum: x.minimum, cap: x.cap, priceMicros: x.priceMicros, instrument: x.instrument, platformFee: x.platformFee ?? null }
   // Fees' must pass the same input checks as any fee table (e.g. investor % fees deducted from the wire stay under 100%)
   const after = validateAllocation({ ...base, fees: feesAfter, investors: [] })
   if (after.length) return { ok: false, errors: after.map((e) => ({ where: `After the change, ${e.where}`, message: e.message })) }
@@ -144,7 +157,7 @@ export function previewFeePayerChange(x: FeePayerInput): Outcome<FeePayerPreview
   const nameOf = (id: string) => names.get(id) ?? id
   const asInvestors = (received: (v: FeePayerInput['investors'][number]) => number) =>
     x.investors.map((v) => ({ id: v.id, name: v.name, received: received(v), scheme: v.scheme }))
-  const feeTotal = (r: AllocationResult) => r.feeTotals.find((f) => f.id === x.feeId)?.amount ?? 0
+  const feeTotal = (r: AllocationResult) => r.feeTotals.find((f) => f.id === x.feeId)?.amount ?? 0 // null while blocked → 0, shown with the blocker
   const blockers: FeePayerBlocker[] = []
   const deal = (prefix: 'before' | 'after', r: AllocationResult) => {
     for (const b of r.blockers) {
@@ -172,7 +185,7 @@ export function previewFeePayerChange(x: FeePayerInput): Outcome<FeePayerPreview
     deal('before', r1)
     if (r1.scaledBack) blockers.push({ code: 'over-cap', investorId: null, text: OVER_CAP_TEXT })
     if (blockers.length) return finishPreview(x, from, feesAfter, r1, null, feeBefore, blockers, target, newDue)
-    for (const row of r1.rows) if (row.participating) target.set(row.id, row.invested)
+    for (const row of r1.rows) if (row.participating) target.set(row.id, row.preFeeInvested) // T before the platform fee (C-ALL-10 v0.9)
     // Step 2: each participant alone; everyone else keeps their cash due
     for (const v of x.investors) {
       const T = target.get(v.id)
@@ -180,7 +193,7 @@ export function previewFeePayerChange(x: FeePayerInput): Outcome<FeePayerPreview
         newDue.set(v.id, v.cashDue)
         continue
       }
-      const n = minimalCashDue(T, feesAfter, x.feeBasis, x.priceMicros)
+      const n = minimalCashDue(T, feesAfter, x.feeBasis, x.priceMicros, x.instrument)
       if (!n.ok) return n.reason === 'limit' ? input(`Fee payer change, ${v.name}`, 'the new cash due would exceed the 1,000,000,000 limit') : internal(`New cash due for ${v.name} not found`)
       newDue.set(v.id, n.value)
     }
@@ -202,11 +215,11 @@ export function previewFeePayerChange(x: FeePayerInput): Outcome<FeePayerPreview
           ? { code: 'would-fall-below-minimum', investorId: row.id, text: `${name} would fall below the minimum commitment` }
           : { code: 'would-leave', investorId: row.id, text: `${name} would leave the allocation` },
       )
-    } else if (row.invested !== T) {
+    } else if (row.preFeeInvested !== T) {
       blockers.push({
         code: 'invested-differs',
         investorId: row.id,
-        text: row.scaledBack ? `${name} would be scaled back by the round cap` : `${name} would invest ${row.invested} instead of ${T}`,
+        text: row.scaledBack ? `${name} would be scaled back by the round cap` : `${name} would invest ${row.preFeeInvested} instead of ${T}`,
       })
     }
   }
@@ -305,7 +318,7 @@ export function buildChange(
     status: 'active',
     voidReason: null,
     feeAtApply: { rateBps: x.fees.find((f) => f.id === x.feeId)!.value, basis: x.feeBasis },
-    settingsAtApply: { minimum: x.minimum, cap: x.cap, priceMicros: x.priceMicros, basis: x.feeBasis, fees: p.feesAfter },
+    settingsAtApply: { minimum: x.minimum, cap: x.cap, priceMicros: x.priceMicros, basis: x.feeBasis, fees: p.feesAfter, instrument: x.instrument ?? 'equity', platformFee: x.platformFee ?? null },
     targets,
     lines: p.rows.map((r) => ({ investorId: r.id, reference: refs.get(r.id) ?? '', baseCashDue: r.currentDue, newCashDue: r.newDue, voided: false, voidReason: null })),
   }

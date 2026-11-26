@@ -11,6 +11,8 @@ import {
   importLossCount,
   importLossText,
   investorImportLoss,
+  ownTermsLocked,
+  OWN_TERMS_LOCKED_TEXT,
   type Action,
   type AppState,
   type CommitmentRow,
@@ -36,6 +38,8 @@ const INVESTOR_STATUS: Record<CommitmentStatus, string> = {
   overpaid: 'Overpaid',
   outstanding: 'Not paid',
   withdrawn: 'Withdrawn',
+  'refund-only': 'Closed — refund only',
+  'check-refunds': 'Check refunds',
 }
 
 type ImportMsg = { ok: true; text: string } | { ok: false; errors: InputError[] } | null
@@ -77,6 +81,10 @@ export function Reconciliation({
   const [investorMsg, setInvestorMsg] = useListMessage<ImportMsg>(state.tables.commitments)
   const [bankMsg, setBankMsg] = useListMessage<ImportMsg>(state.tables.bank)
   const [bankMode, setBankMode] = useState<'replace' | 'append'>('replace')
+  // v0.9 (R-DEAL-05, R-REC-13/14): extra columns, shown when any row uses them or on request
+  const [showTerms, setShowTerms] = useState(false)
+  const termsInUse = state.commitments.some((c) => c.ownFeeMode || c.ownFeeRate || c.ownFeeFixed || c.carry || c.refunded || c.refundOnly)
+  const termsShown = showTerms || termsInUse
   const result = outcome?.ok ? outcome.result : null
   const internal = outcome !== null && !outcome.ok && Boolean(outcome.internal)
   const m = (x: number) => formatMoney(x, cur)
@@ -175,7 +183,7 @@ export function Reconciliation({
           help={
             <>
               Columns: <code>investor_id</code> (optional), <code>name</code>, <code>email</code>, <code>reference</code>, <code>cash_due</code>,{' '}
-              <code>scheme</code> (none / SEIS / EIS). Cash due is everything the investor should wire, including any fees charged to them.
+              <code>scheme</code> (none / SEIS / EIS); optional own_fee_mode, own_fee_rate, own_fee_fixed, carry, refunded, refund_only (withdrawn / closed). Cash due is everything the investor should wire, including any fees charged to them except the pro-rata platform fee.
             </>
           }
           onImport={importInvestors}
@@ -201,6 +209,10 @@ export function Reconciliation({
         ) : (
           <ImportResult msg={investorMsg} />
         )}
+        <label className="check">
+          <input type="checkbox" checked={termsShown} disabled={termsInUse} onChange={(e) => setShowTerms(e.target.checked)} /> Show own terms, refunds and
+          refund-only flags
+        </label>
         <div className="table-wrap">
           <table className="grid" aria-label="Investors">
             <thead>
@@ -210,10 +222,26 @@ export function Reconciliation({
                 <th>Name</th>
                 <th>Email</th>
                 <th>Payment reference</th>
-                <th>Cash due ({sym}, including any fees charged to the investor)</th>
+                <th>Cash due ({sym}, including any fees charged to the investor, except the platform fee)</th>
                 <th>
                   <Term term="S/EIS">Scheme</Term>
                 </th>
+                {termsShown && (
+                  <>
+                    <th>
+                      <Term term="own terms">Own fee mode</Term>
+                    </th>
+                    <th>Own fee rate (%)</th>
+                    <th>Own fixed fee ({sym})</th>
+                    <th>Carry (%)</th>
+                    <th>
+                      <Term term="net received">Refunded</Term> ({sym})
+                    </th>
+                    <th>
+                      <Term term="refund only">Refund only</Term>
+                    </th>
+                  </>
+                )}
                 <th />
               </tr>
             </thead>
@@ -241,6 +269,9 @@ export function Reconciliation({
                     <td>
                       <SchemeSelect label={`Investor ${i + 1} scheme`} value={c.scheme} onChange={edit('scheme')} />
                     </td>
+                    {termsShown && (
+                      <OwnTermsCells row={c} n={i + 1} locked={ownTermsLocked(state, c.id)} edit={edit} />
+                    )}
                     <td>
                       <button
                         type="button"
@@ -411,6 +442,42 @@ function ImportResult({ msg }: { msg: ImportMsg }) {
   return msg.ok ? <Notice kind="ok">{msg.text}</Notice> : <ErrorList errors={msg.errors.map(friendly)} title="Nothing was imported" />
 }
 
+/** R-DEAL-05 / R-REC-13 / R-REC-14 (v0.9): own terms, refunded and the refund-only flag on one investor row. */
+function OwnTermsCells({ row, n, locked, edit }: { row: CommitmentRow; n: number; locked: boolean; edit: (f: keyof CommitmentRow) => (v: string) => void }) {
+  return (
+    <>
+      <td>
+        {locked ? (
+          <span className="hint" title={OWN_TERMS_LOCKED_TEXT}>
+            {row.ownFeeMode || 'Deal default'} · {OWN_TERMS_LOCKED_TEXT}
+          </span>
+        ) : (
+          <select aria-label={`Investor ${n} own fee mode`} value={row.ownFeeMode} onChange={(e) => edit('ownFeeMode')(e.target.value)}>
+            <option value="">Deal default</option>
+            <option value="on_top">On top</option>
+            <option value="deducted">Deducted from the wire</option>
+          </select>
+        )}
+      </td>
+      <td>{locked ? row.ownFeeRate : <Cell className="cell num" label={`Investor ${n} own fee rate`} value={row.ownFeeRate} onCommit={edit('ownFeeRate')} />}</td>
+      <td>{locked ? row.ownFeeFixed : <Cell className="cell num" label={`Investor ${n} own fixed fee`} value={row.ownFeeFixed} onCommit={edit('ownFeeFixed')} />}</td>
+      <td>
+        <Cell className="cell num" label={`Investor ${n} carry`} value={row.carry} onCommit={edit('carry')} />
+      </td>
+      <td>
+        <Cell className="cell num" label={`Investor ${n} refunded`} value={row.refunded} onCommit={edit('refunded')} />
+      </td>
+      <td>
+        <select aria-label={`Investor ${n} refund only`} value={row.refundOnly} onChange={(e) => edit('refundOnly')(e.target.value)}>
+          <option value="">—</option>
+          <option value="withdrawn">Withdrawn</option>
+          <option value="closed">Closed (other final state)</option>
+        </select>
+      </td>
+    </>
+  )
+}
+
 export function SchemeSelect({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) {
   const known = ['none', 'SEIS', 'EIS']
   return (
@@ -497,7 +564,7 @@ function RecResult({
       </dl>
       {result.totals.withdrawn.count > 0 && (
         <p className="hint" data-testid="withdrawn-summary">
-          {withdrawnSummary(result.totals.withdrawn.count, result.totals.withdrawn.toRefund, cur)}
+          {withdrawnSummary(result.totals.withdrawn.count, result.totals.withdrawn.toRefund, cur, result.commitments.some((c) => c.refundOnly !== null))}
         </p>
       )}
 
@@ -600,7 +667,7 @@ function RecResult({
                       {m(c.difference)}
                     </td>
                     <td>
-                      <span className={`badge ${c.status}`}>{INVESTOR_STATUS[c.status]}</span>
+                      <span className={`badge ${c.status}`}>{c.refundOnly === 'withdrawn' && c.status === 'withdrawn' ? 'Withdrawn (imported)' : INVESTOR_STATUS[c.status]}</span>
                       {c.withdrawnOn && <span className="sub">on {longDate(c.withdrawnOn)}</span>}
                     </td>
                     <td>
@@ -616,7 +683,9 @@ function RecResult({
                       )}
                     </td>
                     <td className="nowrap" data-tour={`withdraw-${id}`}>
-                      {c.withdrawnOn !== null ? (
+                      {c.refundOnly !== null ? (
+                        <span className="hint">Set by the refund-only flag</span>
+                      ) : c.withdrawnOn !== null ? (
                         <button
                           type="button"
                           className="link"
@@ -666,7 +735,7 @@ function RecResult({
           <ul className="plain" data-testid="rec-refunds">
             {result.refunds.map((x) => (
               <li key={x.id}>
-                {x.name}: {m(x.amount)} ({x.reason === 'Withdrawn' ? 'Withdrawn' : 'Over-paid'})
+                {x.name}: {m(x.amount)} ({x.reason})
               </li>
             ))}
           </ul>

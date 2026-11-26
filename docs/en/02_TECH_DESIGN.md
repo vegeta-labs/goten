@@ -1,9 +1,10 @@
-English snapshot of docs/02_TECH_DESIGN.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, updated for v0.8 on 2026-10-25, hosting updated on 2026-11-03 (rules v0.7.5; no calculation rule changed). Checked against the Chinese source on 2026-11-12.
+English snapshot of docs/02_TECH_DESIGN.md (Chinese, source of truth) at release v1.0.0, translated on 2026-10-20, updated at v1.1.0 on 2026-10-21, updated for v0.8 on 2026-10-25, hosting updated on 2026-11-03 (rules v0.7.5; no calculation rule changed). §10 added for v0.9 on 2026-11-25. Checked against the Chinese source on 2026-11-25.
 
 # Goten — Deal Calculations — Technical design
 
 Version **v0.8** (drafted 2026-10-23; passed 3 rounds of Codex review; approved by the owner 2026-10-25) · Previous approved version v0.7.1 (2026-10-20) · 2026-10-17 · Based on: `docs/en/01_PRD.md` v0.8 (decision 11)
 
+- v0.8 → v0.9 (2026-11-25; the owner said "approve the documents" after three review rounds by the checker, Bulma and Codex): new §10 "v0.9 design", decision J (PRD v0.9 decision 16): own terms, pro-rata platform fee, net received and refund-only marks, investment instruments allocated by amount only, different carry per investor and carry payees, allocation hand-off file; saved format schema 3. When no new input is used, calculation results do not change.
 - v0.1 → v0.2: changed in response to Codex review items #4 #6 #8 #15 #18 #19 #20.
 - v0.2 → v0.3: changed in response to round-two items R2-02 R2-06 R2-10 (result type categories, holding units, running tests by milestone).
 - v0.7 → v0.7.1 (2026-10-20, clarified against the code after release; no rule changed): no floating-point exception for the hurdle (as in PRD C-01), and the matching risk removed; the engine interface written as in `src/lib/outcome.ts`.
@@ -393,3 +394,139 @@ Drafting this section against the code found 17 gaps or contradictions in the PR
 17. Tour: M5 does the step 6 sentence, the Activity log sentence and "Try next" item 3; M6 does items 1, 2 and the panel notes (tour design v0.3 §8).
 
 Added after the self-test review: the in-memory log is not trimmed when storage is full (#1); normalised reference comparison for adjustment lines (#2); the participant sets of the first and third steps must match (#5); blocked when the commitment allocation is scaled back by the cap (#6); a warning and recalculation when other allocation settings change after apply (#8).
+
+
+---
+
+## 10. v0.9 design (PRD v0.9, decision 16, decision J)
+
+Scope: R-DEAL-05, R-DEAL-06, R-REC-13, R-REC-14, R-ALL-13, R-ALL-14, R-DIS-08, R-DIS-09; rules C-ALL-0, C-ALL-3 (per-investor conversion), C-ALL-9b, C-ALL-12, C-REC-4 (net received), C-REC-9, C-DIS-8, C-DIS-9 and the clauses changed with them. The principles do not change: amounts are integers, intermediate multiplication and division go through `mulDiv` (BigInt), no floating point; calculations live only in `src/lib/` pure functions; components do no money maths; no network requests. Risk level: **high** (calculation core, formats, saved data). Under DEV_PROCESS_RULES: the design and the code are reviewed separately, each by a fresh checker and by Codex, with mutation testing.
+
+**Hard compatibility constraint:** when no new input is used, every engine function's output is field-by-field the same as in v0.8.13 (new fields take their "empty" value). How: every new path is switched on by a new input (`ownTerms` set, `platformFee` set, `refunded > 0`, `refundOnly` set, `instrument ≠ equity`, own carries not all the same, a payee list present); when it is off, the original code runs, and the original branches are not rewritten. Check: all existing unit tests, the frozen sample deal results `sample.expected.json` and the existing oracle samples still pass without changing a single expected value (TC-J-01).
+
+One milestone, **M7**, one PR (the first PR of Bulma D5), with commits split by layer: lib → state → UI → exports and hand-off.
+
+### 10.1 Engine types (`src/lib/`)
+
+`allocation.ts`:
+```ts
+export type Instrument = 'equity' | 'convertible' | 'fund_units'
+export type OwnFee = { kind: 'percent'; bps: number } | { kind: 'fixed'; amount: number } | null
+export interface OwnTerms { mode: FeeBasis; fee: OwnFee }            // C-ALL-0; carry is not here, the allocation does not use it
+export interface PlatformFee {
+  rateBps: number; minimum: number; maximum: number | null
+  addOnThreshold: number | null; addOnBps: number; payer: FeePayer   // 'investors' = pro rata
+}
+AllocationInvestor += { ownTerms?: OwnTerms | null; carryBps?: number | null }  // carry only travels with the row to the holdings
+AllocationInput    += { instrument?: Instrument /* default equity */; platformFee?: PlatformFee | null }
+AllocationInput.priceMicros: number | null      // equity: must be > 0; others: must be null
+AllocationRow      += { ownTerms: OwnTerms | null; carryBps: number | null /* copied from the input as is: exports and carry to exit need it; blank and 0% differ */;
+                        ownFee: number | null /* with own fee terms: their one fee; otherwise null */;
+                        preFeeInvested: number /* T after C-ALL-7 */; platformShare: number /* S, default 0 */ }
+AllocationRow.invested = preFeeInvested − platformShare
+AllocationRow.microShares: bigint | null        // null for non-equity; claimable* are null
+AllocationResult.totals += { platformFee: { amount: number; payer: FeePayer } | null }
+AllocationResult.blockers.code += 'platform-fee-exceeds'
+```
+- `compute()` first works out each investor's `terms_i = (mode, p_i, F_i, items_i)` (the only implementation of C-ALL-0 is `investorTerms(input, v)`): without `ownTerms` these are the original `feeBasis`, `p`, `F`, `pctFees`, `perInvFees`; the formulas after it replace `feeBasis`, `p`, `F` with the investor's values, and **the formulas themselves do not change**. With `ownTerms`, items is empty, the own fee is stored in `ownFee`, and `feesTotal` includes it; the `fees` map has none of the deal's investor fee items.
+- C-ALL-3: the below-minimum check is already an exact comparison (`T × 10,000 < (min − F) × (10,000 − p)`); only `feeBasis`, `p`, `F` are replaced with the investor's values. R30's "T ÷ (1 − f)" and "T + F" are special cases of this formula.
+- C-ALL-9b runs after `rows` are done and before `feeTotals`: `platformFeeAmount(B, pf)` (a pure function in money; two `mulDiv` round-half-up terms added together); `B = Σ preFeeInvested(participants)`; skipped when B = 0. When `payer = investors`, `S = splitProRata(fee, T list)` (largest remainder, ties to the earlier investor; the existing function already follows this rule); `fee > B` or any `S ≥ T` → blocker `platform-fee-exceeds`; when blocked, the figures are still given for diagnosis (C-03).
+- When blocked, the names listed are always the investors with S ≥ T (when fee > B there must be such an investor); then I = T − S may be ≤ 0, and the shares and claimable fields are calculated from max(I, 0) (0 when ≤ 0); group totals add up as usual; the figures are only for diagnosis (C-03). **With `platform-fee-exceeds`, C-ALL-9a is not calculated**: deal-level fees, payment to the company and the lead invoice are all null, and the UI shows "—" (Σ I may be negative, `mulDivN` does not accept negatives, and the result would mean nothing); the confirmation and exports are disabled by the blocker anyway. For this, the types of `totals.companyFees`, `leadInvoice`, `wire` and `feeTotals[].amount` (items not paid by investors) become `number | null` (null only in this branch), and the checks that depend on them (`wire + companyFees = invested` at `allocation.ts:323` and others) do not run in this branch; `allocate()` returns a successful result with the `platform-fee-exceeds` blocker (not an internal error).
+- C-ALL-9a: the `invested` total = Σ (T − S); a company-paid platform fee is added to `companyFees`, a lead-paid one to `leadInvoice`.
+- Each item of `blockers` gets `ids: string[]` (in the same order as `names`); the hand-off result uses the IDs.
+- New checks (`checks`, categories in C-03): `cash-balances` becomes `received = invested + platformShare + feesTotal + refund` (the same as the original formula when S = 0); new `platform-identity`: for each investor `invested = preFeeInvested − platformShare`; the existing `fee-rate` check (`allocation.ts:302`) uses `preFeeInvested` and each investor's own basis and rate (with an own percentage fee only their one fee is checked; a fixed fee is not checked); new `platform-fee-split` (Σ S = platform fee, when investors pay); new `platform-fee-rate` (recalculate `platformFeeAmount(B)` and compare with the result). The original `fee-rate` check uses the investor's p for investors with own terms.
+- `validateAllocation` adds: own rate under deducted < 10,000 bps; own percentage rate 0–10,000; fixed > 0; `instrument` matches `priceMicros`; platform fee field ranges, `minimum ≤ maximum`, and the surcharge rate must be 0 when the threshold is blank.
+
+`waterfall.ts`:
+```ts
+Holding += { carryBps?: number | null }
+WaterfallInput += { payees?: { name: string; shareBps: number }[] }
+WaterfallRow += { carry: number | null /* each investor's carry under C-DIS-8 */ }
+WaterfallResult += { perInvestor: PerInvestorStep[] | null; payees: { name: string; amount: number }[]; tieredNote: number | null }
+```
+- The `k < c` check on the deal's k in the existing `validateWaterfall` moves into `effectiveCarry`: it checks only the k values **actually used** (the original path uses the common value; the per-investor path uses every investor with k_i > 0). Example: deal carry 20%, catch-up 15%, everyone at 10% → valid (v0.8 inputs are not affected: with all own carries blank, the k actually used is the deal's k).
+- `distribute()` starts with `effectiveCarry(input)`: in fixed mode blank → `k`; all the same → call the original path with `k` set to the common value (when blank it is `input.carry.k`, so v0.8 inputs run exactly the same code). Tiered mode: all blank → original path; all filled in and the same → original path, returning `tieredNote = that value`; some blank and some filled in, or different → input error.
+- When they differ, the new function `distributePerInvestor()` runs: `D_i = splitProRata(D, capital)`, and for each investor it calls the **extracted** single-investor waterfall `runFixed(C_i, D_i, k_i, h, c, years100)` (extracted unchanged from the existing fixed branch; the original path is changed to call it too, so there are not two copies of the code); it checks k_i < c for every investor with k_i > 0 (when h > 0 and c > 0). `steps` are summed into deal-level steps (Σ for each step), and `perInvestor` gives one row per investor.
+- C-DIS-9: `payees` empty or missing → `[{ name: 'Lead', amount: carry }]`; otherwise `splitProRata(carry, shareBps)`, ties to the earlier payee; checks that the shares total 10,000, each is > 0, at most 20 payees.
+- New checks: `per-investor-balances` (Σ amounts received + Σ carry_i + E = G), `payee-split` (Σ payees = carry).
+
+`reconcile.ts`:
+```ts
+Commitment += { ownTerms?: OwnTerms | null; carryBps?: number | null; refunded?: number /* default 0 */; refundOnly?: 'withdrawn' | 'closed' | null }
+CommitmentStatus += 'refund-only' | 'check-refunds'
+CommitmentResult += { booked: number /* total of statement lines */; refunded: number }   // received becomes net received
+RefundDue.reason += 'Refund only'
+ReconcileResult.totals.withdrawn counts refund-only investors too (UI text becomes Withdrawn or refund only)
+```
+- `received = booked − refunded`; status priority: `check-refunds` (received < 0) > manual withdrawal / `refundOnly` > the existing statuses. `refundOnly = 'withdrawn'` shares every path with manual withdrawal except the `withdrawnOn` display logic; a manual withdrawal mark is ignored (not deleted) while `refundOnly` is set.
+- C-REC-3: the amount still owed uses net received (`due − received`). With `refunded = 0` it equals the original formula.
+- The existing `ledger-ties` check (`reconcile.ts:411`, Σ each investor's received = matched statement lines) uses `booked` (the statement line total, gross); `received` is net and cannot be compared with the statement lines.
+- `handoffToAllocation`: anyone with `received < 0` → `{ ok: false, reason: 'Check refunds for: …' }`; `refundOnly` investors are not carried over, like withdrawn ones; carried investors get `ownTerms` and `carryBps`.
+- `notCovered` (`adjust.ts`) skips `refundOnly` investors. When `refundOnly` is added (by hand or by import) to someone in scope while a change is active, the reducer voids that investor's adjustment line (`AdjustmentLine.voided`, reason `refund_only`, logged as `adjustment_voided`, like a C-ALL-11 voided line); because voiding is permanent, after the mark is removed `notCovered` naturally lists them as not covered (PRD C-REC-9). A full list replacement on import is judged by the same function and counted in the R-REC-01.3 notice.
+- Pending refund check (the C-REC-7 one): withdrawn and refund-only investors count max(0, received).
+
+`handoff.ts` (new):
+- `parseRequest(text): Outcome<{ input: AllocationInput; meta: RequestMeta; display: … }>`: parsing and all checks (format file §2, §5); the hash is not calculated here.
+- `canonicalJson(value): string` (format file §4); `projectionOf(request)` takes the `projection` subtree as is for canonicalisation.
+- `hashProjection(canonical): Promise<string>`: `crypto.subtle.digest('SHA-256', …)`, available in browsers and in Node 20+; it is the only asynchronous function in lib, and its result is only compared, never used for amounts.
+- `buildResult(meta, result: AllocationResult): string`: format file §3; `target` is taken from `preFeeInvested` (not `AllocationRow.target`, which is the value before the C-ALL-7 reduction), `blockers[].ids` from `ids`; amounts are written as decimal strings and keys are output in a fixed order (the result file need not be canonical, but a fixed order makes comparison easier).
+- The constant `RULES_VERSION = 'goten-rules/0.9'` lives in `src/lib/version.ts`; a PR that changes calculation rules must change it (one line added to the Rules self-check list).
+
+`feePayer.ts`:
+- `FeePayerInput` adds `instrument` and `platformFee`; the full allocations of step 1 and step 3 (`base` at `:139`) both carry them, and the platform fee blocker (`platform-fee-exceeds`) maps to a preview blocker as usual; only the single-investor `allocate()` that solves for N (`:124`) passes `platformFee: null` (solving for one investor's N ignores the platform fee), and it passes `instrument` and `priceMicros` (which may be null).
+- The three places that take the target from `row.invested` (`feePayer.ts:175`, `:205`, `:242`) change to `row.preFeeInvested` (the C-ALL-10 T_i is T before the platform fee).
+- `settingsAtApply` in `adjust.ts` adds `instrument` and `platformFee` (with the payer); `settingsChanged()` compares them (PRD C-ALL-11 v0.9); the schema 3 `feePayerChanges` validation follows.
+
+`csv.ts`: the commitment list reads `own_fee_mode`, `own_fee_rate`, `own_fee_fixed`, `carry`, `refunded`, `refund_only`; allocation investors read `own_fee_mode`, `own_fee_rate`, `own_fee_fixed`, `carry`; holdings read `carry`. Aliases in PRD §5.5. `refund_only` values have ASCII whitespace removed and are lower-cased; `yes` → `closed`. Errors in the combination of rate, fixed fee and basis are reported per row (a rate or fixed fee filled in with a blank basis; both filled in).
+
+`exports.ts` (all columns come before `currency`; the headers of new columns are output even when they are blank, PRD §5.5):
+| File | New columns (in order) |
+|---|---|
+| Allocation CSV | `…, fee_<label>…, own_fee_mode, own_fee_rate, own_fee_fixed, own_fee, carry, platform_fee, currency`; for non-equity the `shares` column is blank |
+| Holdings CSV | `…, carry, currency` |
+| Exit distribution CSV | each investor row adds `carry` after `multiple_excl_entry_fees` and before `currency`: in fixed mode when at least one investor in the holdings has an own carry, the carry actually used for that investor (a percentage with two decimal places, e.g. `20.00`; blank investors get the deal carry); when nobody has an own carry, or in tiered mode, the whole column is blank (PRD §5.5: with no new inputs the new columns are blank) |
+| Payee CSV (new, `payeesCsv`) | `payee, share, amount, currency`; with no list one row `Lead, 100.00, <carry>, <ccy>`; the tiered note (R-DIS-08) is shown only in the UI, not in the CSV |
+| Chase list CSV | `received` is net received; `refunded` is added after `message` and before `currency` (existing columns keep their positions) |
+| Reconciliation ledger | unchanged |
+- Confirmation (R-ALL-10): each investor line adds "own fee" and "platform fee share" (only when present); the deal-level section adds "Pro-rata platform fee ({payer}): {amount}"; for non-equity no shares are written, but "No shares (convertible)" or "(fund units)".
+
+`activity.ts`: events `handoff_request_imported`, `handoff_result_exported`, `platform_fee_payer_changed` (PRD C-X-1).
+
+### 10.2 Saved format (`src/state.ts`, schema 3)
+
+- The name limit `LIMITS.name` changes from 120 to 256 (PRD field table v0.9), and every place that uses it changes with it (list, allocation, holdings, saved data validation, CSV); the existing test "121 characters is an error" changes to 257.
+- `SCHEMA = 3`. When reading schema 1 or 2, new fields take empty values (migration); any new field missing in schema 3 → treated as "invalid saved data" (as in the v0.8 Codex #4 approach: fields that affect money cannot be guessed).
+- `CommitmentRow += { ownFeeMode, ownFeeRate, ownFeeFixed, carry, refunded, refundOnly }` (all strings, '' = blank).
+- `InvestorRow += { ownFeeMode, ownFeeRate, ownFeeFixed, carry }`.
+- `AllocationState += { instrument: Instrument; platformFee: { rate, minimum, maximum, threshold, addOnRate, payer } | null (strings); handoffRequest: { text: string /* the request text as imported */; hash: string } | null; editedSinceRequest: boolean }`. The request text is saved so that on reload it is parsed again with `parseRequest` (investors not in the allocation and display fields such as commitment and cash due come from the text, so the result can be rebuilt in request order), and `hash` is checked to be unchanged; if the text fails to parse, it is treated as invalid saved data. On importing a request `handoffVersion = null` and `editedSinceHandoff = false`; any change to an allocation input or to the deal currency sets `editedSinceRequest` to true, and result export is disabled (R-ALL-14).
+- `HoldingRow += { carry }`; `ExitState += { payees: { id, name, share }[] }`. `exit.carry` and each row's carry are stored separately; switching modes clears only `exit.carry` (the original behaviour), not the carry on the rows (PRD C-DIS preconditions).
+- Saved data loaded by an older release: v1.4.x cannot read schema 3 (as when v1.2.0 moved to schema 2); the release notes state the rollback impact.
+- Own terms lock (C-ALL-10): while a fee payer change is active, the reducer rejects changes to `ownFeeMode / ownFeeRate / ownFeeFixed` for investors in the C-ALL-10 scope, and the UI disables them and gives the reason; on a full list replacement import, `changeVoidedByTerms()`, next to `voidChangedDecisions`, decides whether the whole change is voided, counted in the R-REC-01.3 notice (simulated with the same function, no separate rule).
+- "Out of date" (R-X-07): changes to `refunded`, `refundOnly` and own terms all increase `recVersion`; holdings carry and payees only affect the exit page itself. The decision fingerprint (`reconcile.ts:211`: name, email, cash due, tax scheme) **does not add** the new fields (the R-REC-04.4 exception). Also, `state.ts:407` requires `commitmentOf(row).ok` before voiding a decision: a parse error in a new field must not make it false. How: `commitmentOf` is split into parsing the fingerprint fields (only this decides voiding) and parsing the new fields (errors are shown in the cell as usual and make the reconciliation result unavailable, but do not void decisions).
+
+### 10.3 UI (only takes figures and text from lib)
+
+- Commitment list table: own terms columns are hidden by default; the four columns show when any row has a value or the user turns on "Show own terms" (at 375px they scroll sideways with the table, like existing wide tables). The `refunded` column works the same way ("Show refunds"). `refund_only` shows in the status column, not as its own column; it is edited from the row menu "Refund only…" (withdrawn / closed / clear).
+- Allocation settings: an "Instrument" drop-down (the share price shows only for equity); a collapsible "Pro-rata platform fee" section (rate, minimum, maximum, threshold, surcharge rate, payer); changing the payer shows the R-ALL-13 reminder and is logged. An "Import hand-off request" button next to "Import investors"; after import, a banner at the top shows the hand-off ID and "Export result"; after an input is changed the button is disabled with the reason.
+- Exit: the holdings table adds a "Carry" column (blank = the deal's carry); a collapsible "Carry payees" section; when carries differ, the step-by-step view has an extra "Per investor" table.
+- Text and explained terms (R-X-05) add: own terms, pro-rata platform fee, refund only, net received, convertible / fund units, carry payee. The exact wording is listed for the owner before implementation (he must see changes to UI text).
+- The tour (12 steps) and the sample deal do not change (decision 16).
+
+### 10.4 Tests and recalculation
+
+- Cases: test plan §2.6 (each row tagged 〔M7〕), E2E-12, E2E-13 〔M7〕. The milestone tables in `scripts/check-coverage.mjs` and `check-e2e.mjs` get M7 in **this documentation PR** (otherwise cases tagged M7 would count as already due); when coding starts, `docs/milestone.txt` changes to M7.
+- **Oracle**: a separate agent extends `oracle.py` from the new PRD v0.9 clauses and `scripts/oracle/SCHEMA.md` (own terms, platform fee, net received and refund only, non-equity, per-investor carry and payees, canonical JSON hash); it does not read `src/`. The TS adapter is in `oracle.test.ts`, plus random generation: ≥ 1,000 sets for each new input, and 1,000 sets with "all new inputs blank" (to prove compatibility).
+- Hand-off format: a test vector file shared by both sides, `docs/formats/allocation-handoff-v1.vectors.json` (format file §4), confirmed when Bulma reviews the format.
+- Mutation (new block M7 in `scripts/mutation-check.mjs`, `--since=main`) covers at least: the C-ALL-10 target taken from `invested` (should be `preFeeInvested`); `k < c` still on the deal's k; unknown fields ignored; currency not compared; C-ALL-0 replace changed to add; an investor's basis changed back to the deal's basis; C-ALL-3 conversion using T itself; platform fee min/max order, surcharge put inside the cap, round half up changed to truncation; remainder order of S; skipping at B = 0; `S ≥ T` changed to `S > T`; I = T − S changed to I = T; net received changed to gross; C-REC-3 amount owed using gross; `yes` not read as closed; `check-refunds` priority; refund-only investors missed at carry-over; C-DIS-8 still taking the per-investor path when all are the same; `D_i` weighted by carry; catch-up condition using the deal's k; payee remainder order; hash keys not sorted; engine version not compared; result still exportable after an input changes.
+- E2E: E2E-12 (import a list with own terms and refund-only marks → reconcile → carry over → platform fee → confirmation → carry to exit → per-investor carry); E2E-13 (import a hand-off request → export the result → after changing one input, export is disabled). Each also runs once at 375px.
+
+### 10.5 Risks
+
+| Risk | Response |
+|---|---|
+| Changing `compute()` touches the original path and old results change | Hard compatibility constraint + TC-J-01 + the oracle "all blank" random sets; code review looks specifically at original lines in the diff |
+| Rounding changes when the single-investor waterfall is extracted | All existing DIS cases and the oracle pass before and after extraction; covered by mutation |
+| The two sides implement canonical JSON differently | Shared test vectors; the format is reviewed by Bulma |
+| Rolling back from schema 3 | Stated in the release notes; rolling back to v1.4.x cannot read newly saved data (as with v1.2.0) |
+| Wide tables on phones | New columns hidden by default; 375px E2E |
+| Own terms combined with a fee payer change | The PRD already disables that combination; locking and voiding each have cases |

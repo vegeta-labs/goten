@@ -5,7 +5,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import App from './App'
 import { Checks } from './components/common'
 import { readFileSync } from 'node:fs'
-import { STORAGE_KEY } from './state'
+import { NO_TERMS, STORAGE_KEY } from './state'
 
 class MemoryStorage implements Storage {
   private m = new Map<string, string>()
@@ -457,7 +457,7 @@ describe('M2 interface', () => {
     click('Change to EUR')
     expect(labels()).toContain('(€, blank = none)')
     tab(/Reconciliation/)
-    for (const t of ['Cash due (€, including any fees charged to the investor)', 'Amount (€)']) expect(labels()).toContain(t)
+    for (const t of ['Cash due (€, including any fees charged to the investor, except the platform fee)' /* v0.9, R-REC-01.1 */, 'Amount (€)']) expect(labels()).toContain(t)
     tab(/Allocation/)
     for (const t of ['Share price (€ per share)', 'Round cap (€, blank = no cap)', 'Rate (%) or amount (€)', 'Cash received (€)']) expect(labels()).toContain(t)
     tab(/Exit distribution/)
@@ -582,7 +582,7 @@ describe('M2 interface', () => {
       fireEvent.blur(field)
       fireEvent.keyDown(field, { key: 'Enter' })
       expect(field.value).toBe('100.00')
-      expect(JSON.parse(storage.getItem(STORAGE_KEY)!).allocation.investors).toEqual([{ id: 'bob', name: 'Bob', received: '100.00', scheme: 'none' }])
+      expect(JSON.parse(storage.getItem(STORAGE_KEY)!).allocation.investors).toEqual([{ id: 'bob', name: 'Bob', received: '100.00', scheme: 'none', ...NO_TERMS }]) // v0.9: own-terms text fields
       expect(screen.queryByTestId('updating')).toBeNull()
     } finally {
       vi.useRealTimers()
@@ -942,7 +942,7 @@ describe('M2 interface', () => {
     toExitTab()
     pasteHoldings('name,capital\nA,10')
     expect((screen.getByRole('button', { name: 'Export holdings CSV' }) as HTMLButtonElement).disabled).toBe(false)
-    edit('Holding 1 name', 'A'.repeat(121))
+    edit('Holding 1 name', 'A'.repeat(257)) // v0.9: limit 256 (was 120)
     expect((screen.getByRole('button', { name: 'Export holdings CSV' }) as HTMLButtonElement).disabled).toBe(true)
   })
 

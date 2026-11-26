@@ -79,7 +79,7 @@ describe('C-REC-8 messages', () => {
     const r = sample()
     const rows = Papa.parse<string[]>(chaseListCsv(r, 'GBP', DEAL), { skipEmptyLines: true }).data
     const header = rows[0]
-    expect(header.slice(-4)).toEqual(['committed_original', 'committed_adjustment', 'message', 'currency'])
+    expect(header.slice(-5)).toEqual(['committed_original', 'committed_adjustment', 'message', 'refunded', 'currency']) // v0.9: refunded before currency
     const col = (n: string) => header.indexOf(n)
     const chased = r.commitments.filter((c) => c.status === 'partial' || c.status === 'outstanding')
     expect(rows.length - 1).toBe(chased.length)
